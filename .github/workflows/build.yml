@@ -1,3 +1,4 @@
+
 name: Build Thuto Gov - DR MOKOENA
 on: [push]
 jobs:
@@ -11,9 +12,9 @@ jobs:
           channel: 'stable'
       - name: Create project
         run: |
-          flutter create. 
+          flutter create. --platforms=android --project-name=thuto_gov --overwrite
       - name: Build APK
-        run: flutter build apk flutter create . --platforms=android --project-name thuto_gov --overwrite
+        run: flutter build apk --release
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
