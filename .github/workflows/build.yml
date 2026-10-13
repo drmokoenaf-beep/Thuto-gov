@@ -15,14 +15,6 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Restore main.dart and ensure pubspec
-        run: |
-          cp lib/main.dart /tmp/main.dart 2>/dev/null || true
-          if [ ! -f pubspec.yaml ]; then
-            flutter create . --project-name thuto_gov --org com.thutogov --platforms android
-          fi
-          mkdir -p lib
-          cp /tmp/main.dart lib/main.dart 2>/dev/null || true
       - name: Get dependencies
         run: flutter pub get
       - name: Build APK
