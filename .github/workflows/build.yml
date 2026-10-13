@@ -11,9 +11,9 @@ jobs:
           channel: 'stable'
       - name: Create project
         run: |
-          flutter create. --platforms=android --project-name thuto_gov --overwrite
+          flutter create. 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk flutter create . --platforms=android --project-name thuto_gov --overwrite
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
