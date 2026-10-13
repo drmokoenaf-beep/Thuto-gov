@@ -1,29 +1,24 @@
-
-name: Build Thuto Gov - DR MOKOENA
-on:
-  push:
-    branches: [ main ]
-jobs:
-  build:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Restore main.dart and ensure pubspec
+
+      - name: Ensure Flutter project exists
         run: |
           cp lib/main.dart /tmp/main.dart 2>/dev/null || true
           if [ ! -f pubspec.yaml ]; then
-            flutter create . --project-name thuto_gov --org com.thutogov --platforms android
+            flutter create . --project-name thuto_gov
           fi
           mkdir -p lib
-          cp /tmp/main.dart lib/main.dart 2>/dev/null || true
-      - name: Get dependencies
+          cp /tmp/main.dart lib/main.dart
+
+      - name: Install dependencies
         run: flutter pub get
-      - name: Build APK
-        run: flutter build apk --release
+
