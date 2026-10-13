@@ -11,8 +11,8 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
       - name: Create project
-        run: |
-          flutter create. --platforms=android --project-name=thuto_gov --overwrite
+        run:  |
+           flutter create . --platforms=android --project-name=thuto_gov --overwrite
       - name: Build APK
         run: flutter build apk --release
       - name: Upload APK
