@@ -10,7 +10,7 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
       - name: Create project
-        run: flutter create. --platforms=android --project-name thuto_gov
+        run: flutter create.run: flutter create . --platforms=android --project-name thuto_gov
       - name: Build APK
         run: flutter build apk --release
       - name: Upload APK
