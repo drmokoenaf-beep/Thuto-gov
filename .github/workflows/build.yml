@@ -1,22 +1,217 @@
 
-name: Build Thuto Gov - DR MOKOENA
-on: [push]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.0'
-          channel: 'stable'
-      - name: Create project
-        run:  |
-           flutter create . --platforms=android --project-name=thuto_gov --overwrite
-      - name: Build APK
-        run: flutter build apk --release
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: thuto-gov-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+import 'package:flutter/material.dart';
+
+void main() => runApp(const ThutoGovApp());
+
+class ThutoGovApp extends StatelessWidget {
+  const ThutoGovApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Thuto Gov',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32), // Green
+          primary: const Color(0xFF2E7D32),
+          secondary: const Color(0xFF795548), // Soil brown
+        ),
+        scaffoldBackgroundColor: const Color(0xFFEFEBE9), // Light soil
+      ),
+      home: const MainNav(),
+    );
+  }
+}
+
+class MainNav extends StatefulWidget {
+  const MainNav({super.key});
+  @override
+  State<MainNav> createState() => _MainNavState();
+}
+
+class _MainNavState extends State<MainNav> {
+  int _index = 0;
+  final _pages = const [HomePage(), ApplyPage(), StatusPage()];
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_index],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.description_rounded), label: 'Apply'),
+          NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Status Check'),
+        ],
+      ),
+    );
+  }
+}
+
+// --- HOME ---
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEFEBE9),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2E7D32),
+        title: const Text('THUTO GOV', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+        centerTitle: true,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Dumela Dr Mokoena', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Your education, your future. Built for South Africa.', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)),
+                const SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Color(0xFF795548), borderRadius: BorderRadius.circular(20)),
+                  child: const Text('● System Online', style: TextStyle(color: Colors.white, fontSize: 12)),
+                )
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _homeCard(Icons.school, 'NSFAS', '12k Active', Color(0xFF2E7D32))),
+              const SizedBox(width: 12),
+              Expanded(child: _homeCard(Icons.how_to_reg, 'Applications', '3 Pending', Color(0xFF795548))),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text('Quick Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF4E342E))),
+          const SizedBox(height: 10),
+          Card(child: ListTile(leading: Icon(Icons.verified, color: Color(0xFF2E7D32)), title: Text('Verify Documents'), trailing: Icon(Icons.arrow_forward_ios, size: 16))),
+          Card(child: ListTile(leading: Icon(Icons.location_on, color: Color(0xFF795548)), title: Text('Find Nearest Office - Newcastle'), trailing: Icon(Icons.arrow_forward_ios, size: 16))),
+        ],
+      ),
+    );
+  }
+  Widget _homeCard(IconData icon, String title, String sub, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border(left: BorderSide(color: color, width: 5))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: color), SizedBox(height: 10), Text(title, style: TextStyle(fontWeight: FontWeight.bold)), Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey))]),
+    );
+  }
+}
+
+// --- APPLY ---
+class ApplyPage extends StatefulWidget {
+  const ApplyPage({super.key});
+  @override
+  State<ApplyPage> createState() => _ApplyPageState();
+}
+
+class _ApplyPageState extends State<ApplyPage> {
+  final _formKey = GlobalKey<FormState>();
+  String _type = 'NSFAS Funding';
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Apply'), backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            DropdownButtonFormField(
+              value: _type,
+              decoration: InputDecoration(labelText: 'Application Type', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.white),
+              items: ['NSFAS Funding', 'School Admission', 'Teacher Post', 'Bursary'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (v) => setState(() => _type = v!),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(decoration: _input('Full Name', Icons.person), validator: (v) => v!.isEmpty ? 'Required' : null),
+            const SizedBox(height: 12),
+            TextFormField(decoration: _input('ID Number', Icons.badge), keyboardType: TextInputType.number),
+            const SizedBox(height: 12),
+            TextFormField(decoration: _input('Phone - 07...', Icons.phone), keyboardType: TextInputType.phone),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_type application submitted! Ref: THUTO-${DateTime.now().year}-8821'), backgroundColor: Color(0xFF795548)));
+                }
+              },
+              child: const Text('SUBMIT APPLICATION', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 12),
+            const Text('Your data is protected under POPIA', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+  InputDecoration _input(String label, IconData icon) => InputDecoration(labelText: label, prefixIcon: Icon(icon, color: Color(0xFF795548)), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
+}
+
+// --- STATUS CHECK ---
+class StatusPage extends StatefulWidget {
+  const StatusPage({super.key});
+  @override
+  State<StatusPage> createState() => _StatusPageState();
+}
+
+class _StatusPageState extends State<StatusPage> {
+  final _ctrl = TextEditingController();
+  bool _checked = false;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Status Check'), backgroundColor: const Color(0xFF795548), foregroundColor: Colors.white),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          TextField(
+            controller: _ctrl,
+            decoration: InputDecoration(hintText: 'Enter Ref: THUTO-2026-8821 or ID', prefixIcon: Icon(Icons.search), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF795548), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 14)),
+            onPressed: () => setState(() => _checked = true),
+            child: Text('CHECK STATUS'),
+          ),
+          const SizedBox(height: 20),
+          if (_checked)
+            Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Color(0xFF2E7D32))),
+              child: Column(
+                children: [
+                  Icon(Icons.check_circle, size: 60, color: Color(0xFF2E7D32)),
+                  SizedBox(height: 10),
+                  Text('APPROVED - IN REVIEW', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                  Divider(height: 30),
+                  _statusRow('Reference', _ctrl.text.isEmpty ? 'THUTO-2026-8821' : _ctrl.text),
+                  _statusRow('Applicant', 'Dr Mokoena'),
+                  _statusRow('Type', 'NSFAS Funding'),
+                  _statusRow('Soil Stamp', 'Verified at Newcastle KZN'),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+  Widget _statusRow(String k, String v) => Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(k, style: TextStyle(color: Colors.grey)), Text(v, style: TextStyle(fontWeight: FontWeight.bold))]));
+}
