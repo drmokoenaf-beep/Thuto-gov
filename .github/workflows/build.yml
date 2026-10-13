@@ -1,0 +1,19 @@
+name: Build Thuto Gov - DR MOKOENA
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+      - name: Create Flutter project
+        run: flutter create. --platforms=android --project-name thuto_gov
+      - name: Build APK
+        run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: thuto-gov-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
