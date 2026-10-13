@@ -1,17 +1,142 @@
 import 'package:flutter/material.dart';
-void main()=>runApp(ThutoGovApp());
-class AppLang{
- static Map<String,Map<String,String>> words={
- 'st':{'title':'THUTO GOV','subtitle':'SETHEO SA DR MOKOENA','gov':'Boikarabello ba Mmuso','idface':'Netefatso ya ID + Sefahleho + Sebaka','home':'Hae','apply':'Etsa Kopo','status':'Sheba Boemo','id':'Netefatso ya ID','face':'Tlhokomelo ya Sefahleho','pos':'Sebaka / GPS','motto':'Mobu le Botala — Kgolo le Botshepehi','applyTitle':'Etsa Kopo','idNumber':'Nomoro ya ID','names':'Mabitso a Felletseng','captureFace':'Nka Sefahleho','faceSub':'ID + Sefahleho','capturePos':'Nka Sebaka','posSub':'GPS + Sebaka','submit':'ROMELA KOPO','submitted':'Kopo e Rometswe — Setheo sa Dr Mokoena','checkTitle':'Sheba Boemo','enterId':'Kenya Nomoro ya ID','check':'SHEBA BOEMO','system':'Sistimi: Boikarabello'},
- 'en':{'title':'THUTO GOV','subtitle':'DR MOKOENA INSTITUTION','gov':'Government Accountability','idface':'ID + Face + Position Verification','home':'Home','apply':'Apply','status':'Status Check','id':'ID Verification','face':'Face Recognition','pos':'Position / GPS','motto':'Soil & Green — Growth & Integrity','applyTitle':'Apply','idNumber':'ID Number','names':'Full Names','captureFace':'Capture Face','faceSub':'ID + Face verification','capturePos':'Capture Position','posSub':'GPS + Soil location','submit':'SUBMIT APPLICATION','submitted':'Application Submitted','checkTitle':'Status Check','enterId':'Enter ID Number','check':'CHECK STATUS','system':'System: Government Accountability'},
- 'zu':{'title':'THUTO GOV','subtitle':'ISIKHUNGO SAKWA DR MOKOENA','gov':'Ukuziphendulela KukaHulumeni','idface':'ID + Ubuso + Indawo','home':'Ikhaya','apply':'Faka Isicelo','status':'Hlola Isimo','id':'ID','face':'Ubuso','pos':'Indawo / GPS','motto':'Umhlabathi Nobuhlaza','applyTitle':'Faka Isicelo','idNumber':'Inombolo ye ID','names':'Amagama','captureFace':'Thatha Ubuso','faceSub':'ID + Ubuso','capturePos':'Thatha Indawo','posSub':'GPS','submit':'THUMELA ISICELO','submitted':'Isicelo Sithunyelwe','checkTitle':'Hlola Isimo','enterId':'Faka Inombolo','check':'HLO LA ISIMO','system':'Uhlelo: Ukuziphendulela'},
- };
- static String get(String l,String k)=>words[l]?[k]??words['en']![k]!;
+import 'package:camera/camera.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'dart:io';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(ThutoGovApp(cameras: cameras));
 }
-class ThutoGovApp extends StatefulWidget{ @override _ThutoGovAppState createState()=>_ThutoGovAppState();}
-class _ThutoGovAppState extends State<ThutoGovApp>{ String lang='st'; @override Widget build(BuildContext context){return MaterialApp(title:'Thuto Gov',theme: ThemeData(primaryColor:Color(0xFF1B5E20)),home:MainScreen(lang:lang,onLangChange:(l)=>setState(()=>lang=l)),debugShowCheckedModeBanner:false);}}
-class MainScreen extends StatefulWidget{final String lang; final Function(String) onLangChange; MainScreen({required this.lang,required this.onLangChange}); @override _MainScreenState createState()=>_MainScreenState();}
-class _MainScreenState extends State<MainScreen>{int _index=0; @override Widget build(BuildContext context){final pages=[HomePage(lang:widget.lang),ApplyPage(lang:widget.lang),StatusPage(lang:widget.lang)];return Scaffold(appBar:AppBar(backgroundColor:Color(0xFF1B5E20),title:Text(AppLang.get(widget.lang,'title')),actions:[DropdownButton<String>(value:widget.lang,dropdownColor:Color(0xFF1B5E20),underline:SizedBox(),icon:Icon(Icons.language,color:Colors.white),items:[DropdownMenuItem(value:'st',child:Text('Sesotho',style:TextStyle(color:Colors.white))),DropdownMenuItem(value:'en',child:Text('English',style:TextStyle(color:Colors.white))),DropdownMenuItem(value:'zu',child:Text('isiZulu',style:TextStyle(color:Colors.white)))],onChanged:(v){if(v!=null)widget.onLangChange(v);}),SizedBox(width:12)]),body:pages[_index],bottomNavigationBar:BottomNavigationBar(currentIndex:_index,selectedItemColor:Color(0xFF1B5E20),onTap:(i)=>setState(()=>_index=i),items:[BottomNavigationBarItem(icon:Icon(Icons.home),label:AppLang.get(widget.lang,'home')),BottomNavigationBarItem(icon:Icon(Icons.app_registration),label:AppLang.get(widget.lang,'apply')),BottomNavigationBarItem(icon:Icon(Icons.verified_user),label:AppLang.get(widget.lang,'status'))]));}}
-class HomePage extends StatelessWidget{final String lang; HomePage({required this.lang}); @override Widget build(BuildContext context){return Container(decoration:BoxDecoration(gradient:LinearGradient(colors:[Color(0xFF1B5E20),Color(0xFF8D6E63)])),child:Padding(padding:EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(AppLang.get(lang,'title'),style:TextStyle(color:Colors.white,fontSize:32,fontWeight:FontWeight.bold)),Text(AppLang.get(lang,'subtitle'),style:TextStyle(color:Color(0xFFFFE082))),SizedBox(height:20),Card(child:Padding(padding:EdgeInsets.all(16),child:Column(children:[Text(AppLang.get(lang,'gov')),Text(AppLang.get(lang,'idface')),Divider(),Row(children:[Icon(Icons.badge),Text(AppLang.get(lang,'id'))]),Row(children:[Icon(Icons.face),Text(AppLang.get(lang,'face'))]),Row(children:[Icon(Icons.location_on),Text(AppLang.get(lang,'pos'))])]))),Spacer(),Text(AppLang.get(lang,'motto'),style:TextStyle(color:Colors.white70))])));}}
-class ApplyPage extends StatelessWidget{final String lang; ApplyPage({required this.lang}); @override Widget build(BuildContext context){return ListView(padding:EdgeInsets.all(16),children:[TextField(decoration:InputDecoration(labelText:AppLang.get(lang,'idNumber'),border:OutlineInputBorder())),SizedBox(height:12),TextField(decoration:InputDecoration(labelText:AppLang.get(lang,'names'),border:OutlineInputBorder())),SizedBox(height:12),Card(child:ListTile(leading:Icon(Icons.camera_alt),title:Text(AppLang.get(lang,'captureFace')),subtitle:Text(AppLang.get(lang,'faceSub')))),Card(child:ListTile(leading:Icon(Icons.my_location),title:Text(AppLang.get(lang,'capturePos')),subtitle:Text(AppLang.get(lang,'posSub')))),SizedBox(height:20),ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:Color(0xFF1B5E20)),onPressed:(){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(AppLang.get(lang,'submitted'))));},child:Text(AppLang.get(lang,'submit')))]);}}
-class StatusPage extends StatelessWidget{final String lang; StatusPage({required this.lang}); @override Widget build(BuildContext context){return Center(child:Padding(padding:EdgeInsets.all(20),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(Icons.verified,size:80,color:Color(0xFF1B5E20)),TextField(decoration:InputDecoration(labelText:AppLang.get(lang,'enterId'),border:OutlineInputBorder())),SizedBox(height:12),ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:Color(0xFF8D6E63)),onPressed:(){},child:Text(AppLang.get(lang,'check'))),Text(AppLang.get(lang,'system'))])));}}
+
+class ThutoGovApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+  const ThutoGovApp({super.key, required this.cameras});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Thuto Gov',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: RegistrationScreen(cameras: cameras),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class RegistrationScreen extends StatefulWidget {
+  final List<CameraDescription> cameras;
+  const RegistrationScreen({super.key, required this.cameras});
+  @override
+  State<RegistrationScreen> createState() => _RegistrationScreenState();
+}
+
+class _RegistrationScreenState extends State<RegistrationScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _idController = TextEditingController();
+  final _nameController = TextEditingController();
+  String? _selectedDept = 'Education';
+  String? _selectedPosition = 'Teacher';
+  String? _selectedSupervisor = 'Principal';
+  File? _faceImage;
+  Position? _currentPosition;
+  String _address = 'Fetching location...';
+  bool _isLoadingLocation = false;
+  final List<String> _departments = ['Education', 'Health', 'Public Works', 'Home Affairs', 'Finance'];
+  final List<String> _positions = ['Teacher', 'Principal', 'HOD', 'Clerk', 'Manager', 'Director'];
+  final List<String> _supervisors = ['Principal', 'Circuit Manager', 'District Director', 'HOD'];
+  CameraController? _cameraController;
+  bool _isCameraInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+    _getCurrentLocation();
+  }
+
+  Future<void> _initCamera() async {
+    if (widget.cameras.isEmpty) return;
+    _cameraController = CameraController(widget.cameras[1], ResolutionPreset.medium);
+    await _cameraController!.initialize();
+    if (mounted) setState(() => _isCameraInitialized = true);
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+      Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      setState(() {
+        _currentPosition = pos;
+        _address = placemarks.isNotEmpty? '${placemarks[0].street}, ${placemarks[0].locality}' : '${pos.latitude}, ${pos.longitude}';
+        _isLoadingLocation = false;
+      });
+    } catch (e) {
+      setState(() {
+        _address = 'Location permission needed';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _takePicture() async {
+    if (_cameraController == null ||!_cameraController!.value.isInitialized) return;
+    final XFile file = await _cameraController!.takePicture();
+    setState(() => _faceImage = File(file.path));
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate() && _faceImage!= null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('THUTO GOV Registered: ${_nameController.text} | ID: ${_idController.text} | $_address'), backgroundColor: Colors.green),
+      );
+    } else if (_faceImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please capture Face Photo!'), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('THUTO GOV - DR MOKOENA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), backgroundColor: Colors.blue[900], foregroundColor: Colors.white, centerTitle: true),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(padding: const EdgeInsets.all(12), color: Colors.blue[50], child: Column(children: [const Text('Government Accountability - ID+Face+Position', style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Position: $_address', style: const TextStyle(fontSize: 12)), if (_isLoadingLocation) const LinearProgressIndicator()])),
+            const SizedBox(height: 16),
+            TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)), validator: (v) => v!.isEmpty? 'Required' : null),
+            const SizedBox(height: 12),
+            TextFormField(controller: _idController, decoration: const InputDecoration(labelText: 'ID Number (13 digits)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.badge)), keyboardType: TextInputType.number, maxLength: 13, validator: (v) => v!.length!= 13? '13 digits required' : null),
+            const SizedBox(height: 12),
+            DropdownButtonFormField(value: _selectedDept, items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(), onChanged: (v) => setState(() => _selectedDept = v), decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            DropdownButtonFormField(value: _selectedPosition, items: _positions.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(), onChanged: (v) => setState(() => _selectedPosition = v), decoration: const InputDecoration(labelText: 'Position', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            DropdownButtonFormField(value: _selectedSupervisor, items: _supervisors.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(), onChanged: (v) => setState(() => _selectedSupervisor = v), decoration: const InputDecoration(labelText: 'Supervisor', border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            const Text('Face Verification', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            Container(height: 250, decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)), child: _faceImage!= null? Image.file(_faceImage!, fit: BoxFit.cover) : _isCameraInitialized? CameraPreview(_cameraController!) : const Center(child: CircularProgressIndicator())),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(onPressed: _takePicture, icon: const Icon(Icons.camera_alt), label: const Text('CAPTURE FACE'), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[900], foregroundColor: Colors.white, padding: const EdgeInsets.all(14))),
+            const SizedBox(height: 24),
+            ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700], foregroundColor: Colors.white, padding: const EdgeInsets.all(16)), child: const Text('SUBMIT REGISTRATION - THUTO GOV', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            const SizedBox(height: 8),
+            Text('Lat: ${_currentPosition?.latitude} | Lng: ${_currentPosition?.longitude}', style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
+          ]),
+        ),
+      ),
+    );
+  }
+}
