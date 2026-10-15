@@ -1,4 +1,3 @@
-
 name: Build Thuto Gov - DR MOKOENA
 on:
   push:
@@ -14,7 +13,7 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.19.6'
           channel: 'stable'
       - run: flutter pub get
       - run: flutter build apk --release
