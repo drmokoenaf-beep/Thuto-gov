@@ -1,272 +1,313 @@
-import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'dart:io';
 
-void main() async {
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const supabaseUrl = 'https://ziekltrnewqtnlhfiyxx.supabase.co';
+
+// Replace with your Supabase publishable key.
+const supabasePublishableKey = 'PASTE_YOUR_PUBLISHABLE_KEY_HERE';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final cameras = await availableCameras();
-  runApp(ThutoGovApp(cameras: cameras));
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+  );
+
+  runApp(const ThutoGovApp());
 }
 
+final supabase = Supabase.instance.client;
+
 class ThutoGovApp extends StatelessWidget {
-  final List<CameraDescription> cameras;
-  const ThutoGovApp({super.key, required this.cameras});
+  const ThutoGovApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Thuto Gov',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: RegistrationScreen(cameras: cameras),
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF174A35),
+        ),
+        useMaterial3: true,
+      ),
+      home: const AuthGate(),
     );
   }
 }
 
-class RegistrationScreen extends StatefulWidget {
-  final List<CameraDescription> cameras;
-  const RegistrationScreen({super.key, required this.cameras});
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
 
   @override
-  State<RegistrationScreen> createState() => _RegistrationScreenState();
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (supabase.auth.currentSession != null) {
+          return const HomeScreen();
+        }
+        return const AuthScreen();
+      },
+    );
+  }
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _idController = TextEditingController();
-  final _nameController = TextEditingController();
-  String? _selectedDept = 'Education';
-  String? _selectedPosition = 'Teacher';
-  String? _selectedSupervisor = 'Principal';
-  File? _faceImage;
-  Position? _currentPosition;
-  String _address = 'Fetching location...';
-  bool _isLoadingLocation = false;
-
-  final List<String> _departments = ['Education', 'Health', 'Public Works', 'Home Affairs', 'Finance'];
-  final List<String> _positions = ['Teacher', 'Principal', 'HOD', 'Clerk', 'Manager', 'Director'];
-  final List<String> _supervisors = ['Principal', 'Circuit Manager', 'District Director', 'HOD'];
-
-  CameraController? _cameraController;
-  bool _isCameraInitialized = false;
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    _initCamera();
-    _getCurrentLocation();
-  }
+  State<AuthScreen> createState() => _AuthScreenState();
+}
 
-  Future<void> _initCamera() async {
-    if (widget.cameras.isEmpty) return;
-    _cameraController = CameraController(widget.cameras[1], ResolutionPreset.medium);
-    await _cameraController!.initialize();
-    if (mounted) setState(() => _isCameraInitialized = true);
-  }
+class _AuthScreenState extends State<AuthScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
 
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isLoadingLocation = true);
-    try {
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      setState(() {
-        _currentPosition = pos;
-        _address = placemarks.isNotEmpty
-            ? '${placemarks[0].street}, ${placemarks[0].locality}'
-            : '${pos.latitude}, ${pos.longitude}';
-        _isLoadingLocation = false;
-      });
-    } catch (e) {
-      setState(() {
-        _address = 'Location permission needed';
-        _isLoadingLocation = false;
-      });
-    }
-  }
-
-  Future<void> _takePicture() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-    final XFile file = await _cameraController!.takePicture();
-    setState(() => _faceImage = File(file.path));
-  }
-
-  void _submit() {
-    if (_formKey.currentState!.validate() && _faceImage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'THUTO GOV Registered: ${_nameController.text} | ID: ${_idController.text} | $_address',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else if (_faceImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please capture Face Photo!'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  bool _registering = false;
+  bool _loading = false;
 
   @override
   void dispose() {
-    _cameraController?.dispose();
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+
+    try {
+      if (_registering) {
+        final response = await supabase.auth.signUp(
+          email: _email.text.trim(),
+          password: _password.text,
+          data: {'full_name': _name.text.trim()},
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.session == null
+                  ? 'Registration received. Check your email to confirm.'
+                  : 'Registration successful.',
+            ),
+          ),
+        );
+      } else {
+        await supabase.auth.signInWithPassword(
+          email: _email.text.trim(),
+          password: _password.text,
+        );
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Connection failed. Check your settings.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Thuto Gov')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                const Icon(Icons.verified_user, size: 72),
+                const Text(
+                  'DR MOKOENA INSTITUTION',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                if (_registering)
+                  TextFormField(
+                    controller: _name,
+                    decoration: const InputDecoration(
+                      labelText: 'Full name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty
+                            ? 'Enter your full name'
+                            : null,
+                  ),
+                if (_registering) const SizedBox(height: 12),
+                TextFormField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || !v.contains('@')
+                          ? 'Enter a valid email'
+                          : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _password,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password (at least 8 characters)',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      v == null || v.length < 8
+                          ? 'Use at least 8 characters'
+                          : null,
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _loading ? null : _submit,
+                    child: Text(
+                      _loading
+                          ? 'Please wait...'
+                          : _registering
+                              ? 'REGISTER'
+                              : 'LOGIN',
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _loading
+                      ? null
+                      : () => setState(
+                            () => _registering = !_registering,
+                          ),
+                  child: Text(
+                    _registering
+                        ? 'Already registered? Login'
+                        : 'New user? Register',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  Future<Map<String, dynamic>?> _getProfile() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return null;
+
+    return await supabase
+        .from('profiles')
+        .select('full_name, role')
+        .eq('id', user.id)
+        .maybeSingle();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'THUTO GOV - DR MOKOENA',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        backgroundColor: Colors.blue[900],
-        foregroundColor: Colors.white,
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                color: Colors.blue[50],
-                child: Column(
-                  children: [
-                    const Text(
-                      'Government Accountability - ID+Face+Position',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Position: $_address',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    if (_isLoadingLocation) const LinearProgressIndicator(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Enter your name' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _idController,
-                decoration: const InputDecoration(
-                  labelText: 'ID Number (13 digits)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.badge),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Enter ID number';
-                  if (v.trim().length != 13) return 'ID must be 13 digits';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedDept,
-                items: _departments
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedDept = v),
-                decoration: const InputDecoration(
-                  labelText: 'Department',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedPosition,
-                items: _positions
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedPosition = v),
-                decoration: const InputDecoration(
-                  labelText: 'Position',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedSupervisor,
-                items: _supervisors
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedSupervisor = v),
-                decoration: const InputDecoration(
-                  labelText: 'Supervisor',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Face Verification',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 250,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _faceImage != null
-                    ? Image.file(_faceImage!, fit: BoxFit.cover)
-                    : _isCameraInitialized
-                        ? CameraPreview(_cameraController!)
-                        : const Center(child: CircularProgressIndicator()),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                onPressed: _takePicture,
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('CAPTURE FACE'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[900],
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                ),
-                child: const Text('REGISTER'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Lat: ${_currentPosition?.latitude} | Lng: ${_currentPosition?.longitude}',
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ],
+        title: const Text('Thuto Gov Dashboard'),
+        actions: [
+          IconButton(
+            tooltip: 'Logout',
+            onPressed: () => supabase.auth.signOut(),
+            icon: const Icon(Icons.logout),
           ),
-        ),
+        ],
+      ),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: _getProfile(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Center(
+              child: Text(
+                'Profile unavailable. Check your Supabase database.',
+              ),
+            );
+          }
+
+          final profile = snapshot.data!;
+          final name = profile['full_name'] ?? 'User';
+          final role = profile['role'] ?? 'employee';
+
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Icon(Icons.account_circle, size: 80),
+              Text(
+                'Welcome, $name',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              ListTile(
+                leading: const Icon(Icons.security),
+                title: const Text('Account role'),
+                subtitle: Text(role.toString()),
+              ),
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.access_time),
+                  title: Text('Attendance'),
+                  subtitle: Text('Attendance module to be connected next.'),
+                ),
+              ),
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.location_on),
+                  title: Text('GPS location'),
+                  subtitle: Text('Location module to be connected next.'),
+                ),
+              ),
+              if (role == 'supervisor' || role == 'admin')
+                const Card(
+                  child: ListTile(
+                    leading: Icon(Icons.dashboard),
+                    title: Text('Supervisor dashboard'),
+                    subtitle: Text('Supervisor role detected.'),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
