@@ -6,9 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 const supabaseUrl = 'https://ziekltrnewqtnlhfiyxx.supabase.co';
 
 // Replace with your Supabase publishable key.
-const supabasePublishableKey = 'PASTE_YOUR_PUBLISHABLE_KEY_HERE';
-
-Future<void> main() async {
+const supabasePublishableKey = 'sb_publishable_K-tqCzze6AlfTHyMt8f0nA_-kaeb5yn';
+sb_publishable_K-tqCzze6AlfTHyMt8f0nA_-kaeb5ynFuture<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
