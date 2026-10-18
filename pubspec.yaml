@@ -1,23 +1,27 @@
+
+
 name: thuto_gov
-description: Thuto Gov - DR MOKOENA INSTITUTION - Government Accountability - ID+Face+Position
+description: Thuto Gov - DR Mokoena Institution Accountability System
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.5
-  camera: ^0.11.0
-  geolocator: ^12.0.0
-  geocoding: ^3.0.0
+
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.8.4
+  geolocator: ^13.0.2
+  image_picker: ^1.1.2
+  local_auth: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
