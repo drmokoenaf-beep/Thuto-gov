@@ -1,38 +1,28 @@
-name: Build Flutter Android APK
-on:
-  push:
-    branches: [ "main", "build" ]
-  workflow_dispatch:
+name: thuto_gov
+description: Thuto Gov - DR MOKOENA INSTITUTION - Government Accountability - ID+Face+Position
+publish_to: 'none'
+version: 1.0.0+1
 
-permissions:
-  contents: read
+environment:
+  sdk: '>=3.0.0 <4.0.0'
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-            - name: Checkout repository
-        uses: actions/checkout@v4
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  camera: ^0.10.5+9
+  image_picker: ^1.0.7
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
+  http: ^1.1.2
+  shared_preferences: ^2.2.2
 
-            - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
-            - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-            - name: Install dependencies
-        run: flutter pub get
-
-            - name: Build release APK
-        run: flutter build apk --release
-
-            - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Thuto-Gov-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+flutter:
+  uses-material-design: true
