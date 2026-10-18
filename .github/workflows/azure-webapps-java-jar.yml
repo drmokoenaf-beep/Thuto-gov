@@ -1,4 +1,5 @@
 
+
 name: Disable Java Azure Build
 
 on:
@@ -8,5 +9,5 @@ jobs:
   disabled:
     runs-on: ubuntu-latest
     steps:
-      - name: Java Azure build is disabled
-        run: echo "This is a Flutter project. Use build.yml to build the Thuto Gov APK."
+      - name: Explain disabled Java build
+        run: echo "Thuto Gov is a Flutter project. Use build.yml to build the APK."
