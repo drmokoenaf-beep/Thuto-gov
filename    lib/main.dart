@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // KENYA SUPABASE MONA - E NEPАHETSENG!
+  await Supabase.initialize(
+    url: 'https://ziekltrnewqtnlhfiyxx.supabase.co',
+    anonKey: 'SB_PUBLISHABLE_KEY_YA_HAO_E_TELELE_MONA', // <-- FETOLA MONA!
+  );
   final cameras = await availableCameras();
   runApp(ThutoGovApp(cameras: cameras));
 }
@@ -42,6 +48,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Position? _currentPosition;
   String _address = 'Fetching location...';
   bool _isLoadingLocation = false;
+  bool _isSubmitting = false;
   final List<String> _departments = ['Education', 'Health', 'Public Works', 'Home Affairs', 'Finance'];
   final List<String> _positions = ['Teacher', 'Principal', 'HOD', 'Clerk', 'Manager', 'Director'];
   final List<String> _supervisors = ['Principal', 'Circuit Manager', 'District Director', 'HOD'];
@@ -57,7 +64,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Future<void> _initCamera() async {
     if (widget.cameras.isEmpty) return;
-    _cameraController = CameraController(widget.cameras[1], ResolutionPreset.medium);
+    _cameraController = CameraController(widget.cameras.length > 1 ? widget.cameras[1] : widget.cameras[0], ResolutionPreset.medium);
     await _cameraController!.initialize();
     if (mounted) setState(() => _isCameraInitialized = true);
   }
@@ -83,19 +90,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _takePicture() async {
-    if (_cameraController == null ||!_cameraController!.value.isInitialized) return;
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
     final XFile file = await _cameraController!.takePicture();
     setState(() => _faceImage = File(file.path));
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate() && _faceImage!= null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('THUTO GOV Registered: ${_nameController.text} | ID: ${_idController.text} | $_address'), backgroundColor: Colors.green),
-      );
-    } else if (_faceImage == null) {
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate() || _faceImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please capture Face Photo!'), backgroundColor: Colors.red));
+      return;
     }
+    setState(() => _isSubmitting = true);
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase.from('attendance').insert({
+        'user_id': '00000000-0000-0000-0000-000000000001',
+        'latitude': _currentPosition?.latitude,
+        'longitude': _currentPosition?.longitude,
+        'notes': '${_nameController.text} | ID:${_idController.text} | Dept:$_selectedDept | Pos:$_selectedPosition | Sup:$_selectedSupervisor | Addr:$_address',
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ THUTO GOV Saved: ${_nameController.text} | $_address'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Supabase Error: $e'), backgroundColor: Colors.red));
+    }
+    setState(() => _isSubmitting = false);
   }
 
   @override
@@ -113,7 +135,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         child: Form(
           key: _formKey,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(padding: const EdgeInsets.all(12), color: Colors.blue[50], child: Column(children: [const Text('Government Accountability - ID+Face+Position', style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Position: $_address', style: const TextStyle(fontSize: 12)), if (_isLoadingLocation) const LinearProgressIndicator()])),
+            Container(padding: const EdgeInsets.all(12), color: Colors.blue[50], child: Column(children: [const Text('Government Accountability - ID+Face+Position+GPS', style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Position: $_address', style: const TextStyle(fontSize: 12)), if (_isLoadingLocation) const LinearProgressIndicator()])),
             const SizedBox(height: 16),
             TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Full Name', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)), validator: (v) => v!.isEmpty? 'Required' : null),
             const SizedBox(height: 12),
@@ -131,7 +153,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             const SizedBox(height: 8),
             ElevatedButton.icon(onPressed: _takePicture, icon: const Icon(Icons.camera_alt), label: const Text('CAPTURE FACE'), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[900], foregroundColor: Colors.white, padding: const EdgeInsets.all(14))),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700], foregroundColor: Colors.white, padding: const EdgeInsets.all(16)), child: const Text('SUBMIT REGISTRATION - THUTO GOV', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            _isSubmitting ? const Center(child: CircularProgressIndicator()) : ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700], foregroundColor: Colors.white, padding: const EdgeInsets.all(16)), child: const Text('SUBMIT REGISTRATION - THUTO GOV', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
             const SizedBox(height: 8),
             Text('Lat: ${_currentPosition?.latitude} | Lng: ${_currentPosition?.longitude}', style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
           ]),
