@@ -1,5 +1,4 @@
 
-
 name: thuto_gov
 description: Thuto Gov - DR Mokoena Institution Accountability System
 publish_to: 'none'
@@ -13,8 +12,10 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  supabase_flutter: ^2.8.4
+  camera: ^0.11.0
   geolocator: ^13.0.2
+  geocoding: ^3.0.0
+  supabase_flutter: ^2.8.4
   image_picker: ^1.1.2
   local_auth: ^2.3.0
 
