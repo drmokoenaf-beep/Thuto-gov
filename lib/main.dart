@@ -59,12 +59,32 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _getCurrentLocation();
   }
 
-  Future<void> _initCamera() async {
-    if (widget.cameras.isEmpty) return;
-    _cameraController = CameraController(widget.cameras[1], ResolutionPreset.medium);
-    await _cameraController!.initialize();
-    if (mounted) setState(() => _isCameraInitialized = true);
+  
+Future<void> _initCamera() async {
+  if (widget.cameras.isEmpty) return;
+
+  final camera = widget.cameras.firstWhere(
+    (c) => c.lensDirection == CameraLensDirection.front,
+    orElse: () => widget.cameras.first,
+  );
+
+  try {
+    final controller = CameraController(
+      camera,
+      ResolutionPreset.medium,
+    );
+
+    _cameraController = controller;
+    await controller.initialize();
+
+    if (mounted) {
+      setState(() => _isCameraInitialized = true);
+    }
+  } catch (e) {
+    debugPrint('Camera initialization failed: $e');
   }
+}
+
 
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoadingLocation = true);
