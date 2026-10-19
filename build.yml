@@ -3,12 +3,13 @@ name: Build Thuto Gov - DR MOKOENA
 
 on:
   push:
-    branches: [ "Main", "main" ]
+    branches: ["Main", "main"]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -16,17 +17,30 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.6'
-          channel: 'stable'
+          flutter-version: "3.22.6"
+          channel: stable
+
+      - name: Check Flutter and Android Project
+        run: |
+          flutter --version
+          flutter doctor -v
+          ls -la
+          ls -la android || true
 
       - name: Install Dependencies
         run: flutter pub get
+
+      - name: Check Android Embedding
+        run: |
+          grep -R "io.flutter.app.FlutterApplication" android || true
+          grep -R "io.flutter.app.FlutterActivity" android || true
+          grep -R "io.flutter.embedding.android" android || true
 
       - name: Build Release APK
         run: flutter build apk --release
@@ -36,3 +50,4 @@ jobs:
         with:
           name: thuto-gov-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
