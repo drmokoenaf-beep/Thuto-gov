@@ -1,49 +1,190 @@
+import 'package:flutter/material.dart';
 
+void main() {
+  runApp(ThutoGovApp());
+}
 
-name: Build Thuto Gov - DR MOKOENA
+class ThutoGovApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Thuto-gov',
+      theme: ThemeData(primarySwatch: Colors.deepPurple),
+      home: TranslatorScreen(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+class TranslatorScreen extends StatefulWidget {
+  @override
+  _TranslatorScreenState createState() => _TranslatorScreenState();
+}
 
-permissions:
-  contents: read
+class _TranslatorScreenState extends State<TranslatorScreen> {
+  TextEditingController inputController = TextEditingController();
+  String translatedText = "";
+  bool isSesothoToEnglish = true;
 
-jobs:
-  build:
-    name: Build Android APK
-    runs-on: ubuntu-latest
+  // Dictionary ya Sesotho - English
+  Map<String, String> sesothoToEnglish = {
+    "dumela": "hello",
+    "dumelang": "hello (plural)",
+    "le kae": "how are you",
+    "ke teng": "I am fine",
+    "ke leboha": "thank you",
+    "lebohang": "thank you (plural)",
+    "tsamaya hantle": "go well / goodbye",
+    "sala hantle": "stay well / goodbye",
+    "e": "yes",
+    "tjhe": "no",
+    "metso": "water",
+    "dijo": "food",
+    "ntlo": "house",
+    "sekolo": "school",
+    "mosuwe": "teacher",
+    "ngwana": "child",
+    "bana": "children",
+    "motho": "person",
+    "batho": "people",
+    "pula": "rain",
+    "letsatsi": "sun / day",
+    "bosiu": "night",
+    "hoseng": "morning",
+    "mantsiboya": "evening",
+    "lerato": "love",
+    "kgotso": "peace",
+    "thuto": "education",
+    "gov": "government",
+    "ke a o rata": "I love you",
+    "o bitswa mang": "what is your name",
+    "ke bitswa": "my name is",
+    "ntshwarele": "excuse me / sorry",
+    "ha ke utlwisise": "I don't understand",
+  };
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  Map<String, String> englishToSesotho = {};
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: '17'
+  @override
+  void initState() {
+    super.initState();
+    // Etsa reverse dictionary
+    sesothoToEnglish.forEach((k, v) {
+      englishToSesotho[v] = k;
+    });
+  }
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+  void translate() {
+    String input = inputController.text.toLowerCase().trim();
+    if (input.isEmpty) return;
 
-      - name: Install Dependencies
-        run: flutter pub get
+    String result = "";
+    
+    if (isSesothoToEnglish) {
+      // Sesotho -> English
+      if (sesothoToEnglish.containsKey(input)) {
+        result = sesothoToEnglish[input]!;
+      } else {
+        // Leka ho batla mantswe a ka hare
+        result = "Ha e yo bukeng. Leka: dumela, le kae, ke teng, ke leboha, metsi, dijo, ntlo, sekolo";
+        sesothoToEnglish.forEach((sesotho, english) {
+          if (input.contains(sesotho)) {
+            result = english;
+          }
+        });
+      }
+    } else {
+      // English -> Sesotho
+      if (englishToSesotho.containsKey(input)) {
+        result = englishToSesotho[input]!;
+      } else {
+        result = "Not in dictionary. Try: hello, how are you, thank you, water, food, house, school";
+        englishToSesotho.forEach((english, sesotho) {
+          if (input.contains(english)) {
+            result = sesotho;
+          }
+        });
+      }
+    }
 
-      - name: Check Flutter Code
-        run: flutter analyze
+    setState(() {
+      translatedText = result;
+    });
+  }
 
-      - name: Build Release APK
-        run: flutter build apk --release
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: thuto-gov-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Thuto-gov - Sesotho Translator"),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Switch button
+            Card(
+              child: ListTile(
+                title: Text(isSesothoToEnglish ? "Sesotho → English" : "English → Sesotho"),
+                trailing: Switch(
+                  value: isSesothoToEnglish,
+                  onChanged: (val) {
+                    setState(() { isSesothoToEnglish = val; translatedText = ""; });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+            TextField(
+              controller: inputController,
+              decoration: InputDecoration(
+                labelText: isSesothoToEnglish ? "Ngola Sesotho mona" : "Write English here",
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.translate),
+              ),
+              onSubmitted: (_) => translate(),
+            ),
+            SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: translate,
+              icon: Icon(Icons.g_translate),
+              label: Text("FETOLELA / TRANSLATE"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                minimumSize: Size(double.infinity, 50),
+              ),
+            ),
+            SizedBox(height: 25),
+            if (translatedText.isNotEmpty)
+              Card(
+                color: Colors.deepPurple.shade50,
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Text("Phetolelo / Translation:", style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 10),
+                      Text(translatedText, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                    ],
+                  ),
+                ),
+              ),
+            SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                children: [
+                  Text("Mantswe a tlwaelehileng / Common words:", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...sesothoToEnglish.entries.take(10).map((e) => ListTile(
+                    dense: true,
+                    title: Text("${e.key} = ${e.value}"),
+                  )),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
