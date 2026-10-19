@@ -1,10 +1,14 @@
 
+
 name: Build Thuto Gov - DR MOKOENA
 
 on:
   push:
     branches: ["Main", "main"]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -26,21 +30,16 @@ jobs:
           flutter-version: "3.22.6"
           channel: stable
 
-      - name: Check Flutter and Android Project
+      - name: Check Project Files
         run: |
           flutter --version
-          flutter doctor -v
+          test -f pubspec.yaml
+          test -f lib/main.dart
           ls -la
           ls -la android || true
 
       - name: Install Dependencies
         run: flutter pub get
-
-      - name: Check Android Embedding
-        run: |
-          grep -R "io.flutter.app.FlutterApplication" android || true
-          grep -R "io.flutter.app.FlutterActivity" android || true
-          grep -R "io.flutter.embedding.android" android || true
 
       - name: Build Release APK
         run: flutter build apk --release
