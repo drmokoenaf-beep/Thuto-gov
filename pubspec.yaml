@@ -1,0 +1,22 @@
+
+name: thuto_gov
+description: "Thuto Gov - Dr Mokoena Institution and Indigenous Knowledge Systems - Government Accountability, Education, Attendance, Classrooms and Private Student Marks."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  supabase_flutter: ^2.8.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
