@@ -1,3 +1,4 @@
+
 name: Build Thuto Gov Android APK
 
 on:
@@ -17,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Java 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
@@ -29,8 +30,19 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.24.5'
           cache: true
+
+      - name: Check Flutter version
+        run: flutter --version
+
+      - name: Regenerate Android platform files
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --org com.example --project-name thuto_gov
+
+      - name: Check for old Android embedding
+        run: |
+          grep -R -n -E 'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|io\.flutter\.app\.FlutterFragmentActivity' android lib || true
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -43,3 +55,4 @@ jobs:
         with:
           name: thuto-gov-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
