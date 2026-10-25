@@ -5,7 +5,11 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - Main
       - main
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -25,9 +29,15 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Check Flutter version
         run: flutter --version
+
+      - name: Regenerate Android platform files
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --org com.example --project-name thuto_gov
 
       - name: Install dependencies
         run: flutter pub get
@@ -36,6 +46,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: thuto-gov-release-apk
