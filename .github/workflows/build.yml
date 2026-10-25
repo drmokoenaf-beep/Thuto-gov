@@ -1,24 +1,72 @@
-name: Build Thuto Gov APK
+
+name: Build Thuto Gov Android APK
+
 on:
+  push:
+    branches:
+      - Main
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build Flutter APK
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-      - uses: subosito/flutter-action@v2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
-          channel: 'stable'
-      - run: flutter pub get
-      - run: rm -rf android
-      - run: flutter create . --platforms=android --org za.gov --project-name thuto_gov
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+          channel: stable
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Diagnose Android embedding
+        run: |
+          echo "Checking Android manifest files..."
+          find android -name AndroidManifest.xml -type f -print
+
+          echo "Searching for old V1 embedding references..."
+          grep -R -n -E 'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|io\.flutter\.app\.FlutterFragmentActivity' android || true
+
+          echo "Checking Flutter embedding markers..."
+          grep -R -n 'flutterEmbedding' android || true
+
+          echo "Checking MainActivity files..."
+          find android/app/src -name '*MainActivity*' -type f -print
+
+          echo "Checking Gradle configuration files..."
+          find android -maxdepth 3 -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' -o -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print
+
+          echo "Checking the main manifest..."
+          cat android/app/src/main/AndroidManifest.xml
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Check dependencies
+        run: flutter pub deps
+
+      - name: Build release APK
+        run: flutter build apk --release -v
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
         with:
-          name: ThutoGov-APK
+          name: thuto-gov-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
