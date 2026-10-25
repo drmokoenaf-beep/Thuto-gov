@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:camera/camera.dart';
@@ -7,9 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const String supabaseUrl =
-    'https://uqmjkehzirlqpktwcdhh.supabase.co';
-
+const String supabaseUrl = 'https://uqmjkehzirlqpktwcdhh.supabase.co';
 const String supabasePublishableKey =
     'sb_publishable_xE5Ftz-osVEAxVAeX32qTg_5UpKkRSi';
 
@@ -22,7 +19,6 @@ Future<void> main() async {
   );
 
   List<CameraDescription> cameras = [];
-
   try {
     cameras = await availableCameras();
   } catch (e) {
@@ -40,7 +36,7 @@ class ThutoGovApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Thuto Gov - Dr Mokoena',
+      title: 'Thuto Gov - Dr Mokoena Institution',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
@@ -62,13 +58,12 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _idController = TextEditingController();
 
-  bool _isLogin = false;
+  bool _isLogin = true;
   bool _loading = false;
   bool _obscurePassword = true;
 
@@ -79,33 +74,18 @@ class _AuthScreenState extends State<AuthScreen> {
   File? _faceImage;
   CameraController? _cameraController;
   bool _cameraReady = false;
-
   Position? _currentPosition;
   String _address = 'Location not yet retrieved';
   bool _gettingLocation = false;
 
-  final List<String> _departments = [
-    'Education',
-    'Health',
-    'Public Works',
-    'Home Affairs',
-    'Finance',
+  final List<String> _departments = const [
+    'Education', 'Health', 'Public Works', 'Home Affairs', 'Finance'
   ];
-
-  final List<String> _positions = [
-    'Teacher',
-    'Principal',
-    'HOD',
-    'Clerk',
-    'Manager',
-    'Director',
+  final List<String> _positions = const [
+    'Teacher', 'Principal', 'HOD', 'Clerk', 'Manager', 'Director'
   ];
-
-  final List<String> _supervisors = [
-    'Principal',
-    'Circuit Manager',
-    'District Director',
-    'HOD',
+  final List<String> _supervisors = const [
+    'Principal', 'Circuit Manager', 'District Director', 'HOD'
   ];
 
   SupabaseClient get _supabase => Supabase.instance.client;
@@ -119,26 +99,21 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _initializeCamera() async {
     if (widget.cameras.isEmpty) return;
-
     final camera = widget.cameras.firstWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => widget.cameras.first,
     );
-
     final controller = CameraController(
       camera,
       ResolutionPreset.medium,
       enableAudio: false,
     );
-
     try {
       await controller.initialize();
-
       if (!mounted) {
         await controller.dispose();
         return;
       }
-
       _cameraController = controller;
       setState(() => _cameraReady = true);
     } catch (e) {
@@ -150,20 +125,14 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _getCurrentLocation() async {
     if (!mounted) return;
     setState(() => _gettingLocation = true);
-
     try {
       final enabled = await Geolocator.isLocationServiceEnabled();
-
-      if (!enabled) {
-        throw Exception('Please enable your phone location service.');
-      }
+      if (!enabled) throw Exception('Please enable phone location services.');
 
       LocationPermission permission = await Geolocator.checkPermission();
-
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         throw Exception('Location permission was not granted.');
@@ -175,35 +144,23 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
 
-      String address =
-          '${position.latitude}, ${position.longitude}';
-
+      String address = '${position.latitude}, ${position.longitude}';
       try {
         final placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+          position.latitude, position.longitude,
         );
-
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
           final parts = [
-            place.street,
-            place.locality,
-            place.administrativeArea,
-          ].where(
-            (part) => part != null && part.trim().isNotEmpty,
-          );
-
-          if (parts.isNotEmpty) {
-            address = parts.join(', ');
-          }
+            place.street, place.locality, place.administrativeArea,
+          ].where((part) => part != null && part.trim().isNotEmpty);
+          if (parts.isNotEmpty) address = parts.join(', ');
         }
       } catch (_) {
         // Coordinates remain available if reverse geocoding fails.
       }
 
       if (!mounted) return;
-
       setState(() {
         _currentPosition = position;
         _address = address;
@@ -211,7 +168,6 @@ class _AuthScreenState extends State<AuthScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _address = 'Location unavailable: $e';
         _gettingLocation = false;
@@ -221,17 +177,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _takePicture() async {
     final controller = _cameraController;
-
     if (controller == null || !controller.value.isInitialized) {
-      _showMessage('Camera is not available. Check camera permission.');
+      _showMessage('Camera is unavailable. Check camera permission.');
       return;
     }
-
     try {
       final picture = await controller.takePicture();
-
       if (!mounted) return;
-
       setState(() => _faceImage = File(picture.path));
     } catch (e) {
       _showMessage('Could not capture photo: $e');
@@ -240,7 +192,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -255,14 +206,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (existing != null) return;
 
-    final metadata = user.userMetadata ?? {};
-
+    final metadata = user.userMetadata ?? <String, dynamic>{};
     await _supabase.from('profiles').insert({
       'id': user.id,
       'email': user.email,
-      'full_name': (metadata['full_name'] as String?) ?? '',
+      'full_name': metadata['full_name'] ?? '',
       'id_number': metadata['id_number'],
+      'department': metadata['department'],
       'position': metadata['position'],
+      'supervisor': metadata['supervisor'],
       'role': 'user',
       'face_verified': false,
     });
@@ -270,12 +222,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (!_isLogin && _faceImage == null) {
-      _showMessage('Please capture your face photo to continue.');
+      _showMessage('Please capture a face photo to continue.');
       return;
     }
-
     if (_isLogin) {
       await _login();
     } else {
@@ -285,7 +235,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _createAccount() async {
     setState(() => _loading = true);
-
     try {
       final response = await _supabase.auth.signUp(
         email: _emailController.text.trim(),
@@ -293,12 +242,13 @@ class _AuthScreenState extends State<AuthScreen> {
         data: {
           'full_name': _nameController.text.trim(),
           'id_number': _idController.text.trim(),
+          'department': _department,
           'position': _position,
+          'supervisor': _supervisor,
         },
       );
 
       final user = response.user;
-
       if (user == null) {
         throw Exception('Account creation did not return a user.');
       }
@@ -308,20 +258,18 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       if (!mounted) return;
-
       setState(() => _isLogin = true);
-
       _showMessage(
         response.session == null
-            ? 'Account created. Check your email to confirm it, then log in.'
-            : 'Account created successfully. Please log in.',
+            ? 'Account created. Confirm your email, then log in.'
+            : 'Account created. Please log in.',
       );
     } on AuthException catch (e) {
       _showMessage('Account creation failed: ${e.message}');
     } on PostgrestException catch (e) {
       _showMessage(
-        'Account was created, but profile setup failed. '
-        'Check profiles RLS policies: ${e.message}',
+        'Account created, but profile setup failed. Check profiles table '
+        'columns and RLS policies: ${e.message}',
       );
     } catch (e) {
       _showMessage('Could not create account: $e');
@@ -332,36 +280,28 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _login() async {
     setState(() => _loading = true);
-
     try {
       final response = await _supabase.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
       final user = response.user;
-
-      if (user == null) {
-        throw Exception('Login did not return a user.');
-      }
+      if (user == null) throw Exception('Login did not return a user.');
 
       await _ensureUserProfile(user);
-
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => AccountHomeScreen(
-            cameras: widget.cameras,
-          ),
+          builder: (_) => AccountHomeScreen(cameras: widget.cameras),
         ),
       );
     } on AuthException catch (e) {
       _showMessage('Login failed: ${e.message}');
     } on PostgrestException catch (e) {
       _showMessage(
-        'Login succeeded, but profile access failed. '
-        'Check profiles RLS policies: ${e.message}',
+        'Login succeeded, but profile access failed. Check profiles table '
+        'columns and RLS policies: ${e.message}',
       );
     } catch (e) {
       _showMessage('Could not log in: $e');
@@ -407,7 +347,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
-
                 if (!_isLogin) ...[
                   TextFormField(
                     controller: _nameController,
@@ -416,17 +355,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person),
                     ),
-                    validator: (value) {
-                      if (!_isLogin &&
-                          (value == null || value.trim().isEmpty)) {
-                        return 'Enter your full name';
-                      }
-                      return null;
-                    },
+                    validator: (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Enter your full name'
+                            : null,
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -445,7 +380,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -464,14 +398,10 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.length < 8) {
-                      return 'Password must be at least 8 characters';
-                    }
-                    return null;
-                  },
+                  validator: (value) => value == null || value.length < 8
+                      ? 'Password must be at least 8 characters'
+                      : null,
                 ),
-
                 if (!_isLogin) ...[
                   const SizedBox(height: 12),
                   TextFormField(
@@ -482,17 +412,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.badge),
                     ),
-                    validator: (value) {
-                      if (!_isLogin &&
-                          (value == null ||
-                              !RegExp(r'^\d{13}$').hasMatch(value.trim()))) {
-                        return 'Enter a 13-digit ID number';
-                      }
-                      return null;
-                    },
+                    validator: (value) =>
+                        value == null ||
+                                !RegExp(r'^\d{13}$').hasMatch(value.trim())
+                            ? 'Enter a 13-digit ID number'
+                            : null,
                   ),
                   const SizedBox(height: 12),
-
                   DropdownButtonFormField<String>(
                     value: _department,
                     decoration: const InputDecoration(
@@ -500,18 +426,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _departments
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(item),
-                          ),
-                        )
+                        .map((item) => DropdownMenuItem(
+                              value: item, child: Text(item)))
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _department = value),
                   ),
                   const SizedBox(height: 12),
-
                   DropdownButtonFormField<String>(
                     value: _position,
                     decoration: const InputDecoration(
@@ -519,18 +440,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _positions
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(item),
-                          ),
-                        )
+                        .map((item) => DropdownMenuItem(
+                              value: item, child: Text(item)))
                         .toList(),
-                    onChanged: (value) =>
-                        setState(() => _position = value),
+                    onChanged: (value) => setState(() => _position = value),
                   ),
                   const SizedBox(height: 12),
-
                   DropdownButtonFormField<String>(
                     value: _supervisor,
                     decoration: const InputDecoration(
@@ -538,27 +453,18 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _supervisors
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(item),
-                          ),
-                        )
+                        .map((item) => DropdownMenuItem(
+                              value: item, child: Text(item)))
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _supervisor = value),
                   ),
                   const SizedBox(height: 20),
-
                   const Text(
                     'Face Photo',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-
                   SizedBox(
                     height: 220,
                     child: _faceImage != null
@@ -572,32 +478,25 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                   ),
                   const SizedBox(height: 8),
-
                   ElevatedButton.icon(
                     onPressed: _takePicture,
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('CAPTURE FACE PHOTO'),
                   ),
-
                   const SizedBox(height: 16),
                   const Text(
                     'GPS Location',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(_address),
-                  if (_gettingLocation)
-                    const LinearProgressIndicator(),
+                  if (_gettingLocation) const LinearProgressIndicator(),
                   TextButton.icon(
-                    onPressed: _gettingLocation
-                        ? null
-                        : _getCurrentLocation,
+                    onPressed: _gettingLocation ? null : _getCurrentLocation,
                     icon: const Icon(Icons.location_on),
                     label: const Text('REFRESH LOCATION'),
                   ),
                 ],
-
                 const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: _loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
@@ -606,14 +505,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     padding: const EdgeInsets.all(16),
                   ),
                   child: _loading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : Text(_isLogin ? 'LOGIN' : 'CREATE ACCOUNT'),
                 ),
-
                 const SizedBox(height: 8),
-
                 TextButton(
                   onPressed: _loading
                       ? null
@@ -636,27 +538,21 @@ class _AuthScreenState extends State<AuthScreen> {
 class AccountHomeScreen extends StatelessWidget {
   final List<CameraDescription> cameras;
 
-  const AccountHomeScreen({
-    super.key,
-    required this.cameras,
-  });
+  const AccountHomeScreen({super.key, required this.cameras});
 
   Future<void> _logout(BuildContext context) async {
     await Supabase.instance.client.auth.signOut();
-
     if (!context.mounted) return;
-
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => AuthScreen(cameras: cameras),
-      ),
+      MaterialPageRoute(builder: (_) => AuthScreen(cameras: cameras)),
       (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -671,45 +567,116 @@ class AccountHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.verified_user,
-                size: 64,
-                color: Colors.green,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'You are logged in to Thuto Gov.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(user?.email ?? ''),
-              const SizedBox(height: 12),
-              const Text(
-                'Account access is connected. '
-                'Supervisor Dashboard, attendance, classrooms, '
-                'and private marks still need to be connected '
-                'to their respective screens.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => _logout(context),
-                icon: const Icon(Icons.logout),
-                label: const Text('LOG OUT'),
-              ),
-            ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.verified_user, color: Colors.green, size: 36),
+              title: Text('Thuto Gov Account'),
+              subtitle: Text('Signed in successfully'),
+            ),
           ),
-        ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Signed-in email'),
+              subtitle: Text(user?.email ?? 'No email available'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ACCOUNT SERVICES',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          _ServiceTile(
+            icon: Icons.dashboard,
+            title: 'Supervisor Dashboard',
+            subtitle: 'Supervisor-only access must be enforced by database policies.',
+            onTap: () => _showNotice(
+              context,
+              'Supervisor Dashboard screen is not yet connected. '
+              'Do not grant supervisor access based only on a profile field.',
+            ),
+          ),
+          _ServiceTile(
+            icon: Icons.fact_check,
+            title: 'Attendance',
+            subtitle: 'Check-in, check-out and attendance reports',
+            onTap: () => _showNotice(
+              context,
+              'Attendance screen and database operations still need to be connected.',
+            ),
+          ),
+          _ServiceTile(
+            icon: Icons.groups,
+            title: 'Classrooms',
+            subtitle: 'Classroom collaboration and homework',
+            onTap: () => _showNotice(
+              context,
+              'Classroom screens and membership permissions still need to be connected.',
+            ),
+          ),
+          _ServiceTile(
+            icon: Icons.lock,
+            title: 'Private Marks',
+            subtitle: 'Marks visible only to the authorised learner and staff',
+            onTap: () => _showNotice(
+              context,
+              'Private marks screen and database access policies still need to be connected.',
+            ),
+          ),
+          _ServiceTile(
+            icon: Icons.location_on,
+            title: 'Location and Check-in',
+            subtitle: 'GPS permission and location checks',
+            onTap: () => _showNotice(
+              context,
+              'GPS is requested on the registration screen. A secure attendance record '
+              'must be implemented separately.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout),
+            label: const Text('LOG OUT'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNotice(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+    );
+  }
+}
+
+class _ServiceTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ServiceTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon, color: Colors.green.shade800),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
