@@ -1,3 +1,4 @@
+
 name: Build Thuto Gov Android APK
 
 on:
@@ -42,7 +43,19 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Check dependencies for obsolete embedding
+      - name: Diagnose Android embedding configuration
+        run: |
+          echo "Checking Android project configuration..."
+          find android -type f \( -name "*.gradle" -o -name "*.gradle.kts" -o -name "gradle.properties" -o -name "settings.gradle" -o -name "settings.gradle.kts" \) -print
+          echo "Searching Android configuration for old embedding references..."
+          grep -RInE 'io\.flutter\.app\.|PluginRegistry\.Registrar|registerWith\(Registrar|flutterEmbedding|embedding' android 2>/dev/null || true
+          echo "Checking Flutter project metadata..."
+          find . -maxdepth 3 -type f \( -name ".metadata" -o -name "pubspec.yaml" \) -print
+          if [ -f .metadata ]; then
+            cat .metadata
+          fi
+
+      - name: Check dependencies
         run: flutter pub deps
 
       - name: Build release APK
@@ -55,5 +68,3 @@ jobs:
           name: thuto-gov-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-
-
