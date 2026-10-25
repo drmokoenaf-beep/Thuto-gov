@@ -3,6 +3,9 @@ name: Build Thuto Gov Android APK
 
 on:
   push:
+    branches:
+      - Main
+      - main
   workflow_dispatch:
 
 permissions:
@@ -31,35 +34,36 @@ jobs:
       - name: Show Flutter version
         run: flutter --version
 
-      - name: Check Android project files
+      - name: Verify Android V2 manifest
         run: |
-          echo "Checking Android project files..."
-          find android/app/src -type f 2>/dev/null | sort
-          echo "Checking obsolete Android v1 embedding references..."
-          grep -RInE \
-            'io\.flutter\.app\.|PluginRegistry\.Registrar|registerWith\(Registrar' \
-            android lib .dart_tool 2>/dev/null || true
+          echo "Checking AndroidManifest.xml..."
+          cat android/app/src/main/AndroidManifest.xml
+
+          if grep -q 'android:name="io.flutter.app.FlutterApplication"' android/app/src/main/AndroidManifest.xml; then
+            echo "ERROR: Obsolete FlutterApplication reference found."
+            exit 1
+          fi
+
+          if ! grep -q 'android:name="flutterEmbedding"' android/app/src/main/AndroidManifest.xml; then
+            echo "ERROR: flutterEmbedding metadata is missing."
+            exit 1
+          fi
+
+          if ! grep -A 2 'android:name="flutterEmbedding"' android/app/src/main/AndroidManifest.xml | grep -q 'android:value="2"'; then
+            echo "ERROR: flutterEmbedding must have android:value=2."
+            exit 1
+          fi
+
+          echo "Android V2 manifest check passed."
 
       - name: Get Flutter dependencies
         run: flutter pub get
-
-      - name: Diagnose Android embedding configuration
-        run: |
-          echo "Checking Android project configuration..."
-          find android -type f \( -name "*.gradle" -o -name "*.gradle.kts" -o -name "gradle.properties" -o -name "settings.gradle" -o -name "settings.gradle.kts" \) -print
-          echo "Searching Android configuration for old embedding references..."
-          grep -RInE 'io\.flutter\.app\.|PluginRegistry\.Registrar|registerWith\(Registrar|flutterEmbedding|embedding' android 2>/dev/null || true
-          echo "Checking Flutter project metadata..."
-          find . -maxdepth 3 -type f \( -name ".metadata" -o -name "pubspec.yaml" \) -print
-          if [ -f .metadata ]; then
-            cat .metadata
-          fi
 
       - name: Check dependencies
         run: flutter pub deps
 
       - name: Build release APK
-        run: flutter build apk --release -v
+        run: flutter build apk --release
 
       - name: Upload APK
         if: success()
