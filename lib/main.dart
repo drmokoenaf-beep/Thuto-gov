@@ -10,9 +10,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 const String supabaseUrl =
     'https://uqmjkehzirlqpktwcdhh.supabase.co';
 
-// Replace this placeholder with your complete sb_publishable_ key.
 const String supabasePublishableKey =
-    'PASTE_YOUR_FULL_SB_PUBLISHABLE_KEY_HERE';
+    'sb_publishable_xE5Ftz-osVEAxVAeX32qTg_5UpKkRSi';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -153,7 +152,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _gettingLocation = true);
 
     try {
-      bool enabled = await Geolocator.isLocationServiceEnabled();
+      final enabled = await Geolocator.isLocationServiceEnabled();
 
       if (!enabled) {
         throw Exception('Please enable your phone location service.');
@@ -176,7 +175,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       );
 
-      String address = 
+      String address =
           '${position.latitude}, ${position.longitude}';
 
       try {
@@ -191,7 +190,9 @@ class _AuthScreenState extends State<AuthScreen> {
             place.street,
             place.locality,
             place.administrativeArea,
-          ].where((part) => part != null && part.trim().isNotEmpty);
+          ].where(
+            (part) => part != null && part.trim().isNotEmpty,
+          );
 
           if (parts.isNotEmpty) {
             address = parts.join(', ');
@@ -302,8 +303,6 @@ class _AuthScreenState extends State<AuthScreen> {
         throw Exception('Account creation did not return a user.');
       }
 
-      // Create the profile directly only when a session exists.
-      // If email confirmation is required, create it after login.
       if (response.session != null) {
         await _ensureUserProfile(user);
       }
@@ -501,10 +500,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _departments
-                        .map((item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item),
-                            ))
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(item),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _department = value),
@@ -518,10 +519,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _positions
-                        .map((item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item),
-                            ))
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(item),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _position = value),
@@ -535,10 +538,12 @@ class _AuthScreenState extends State<AuthScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: _supervisors
-                        .map((item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item),
-                            ))
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(item),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _supervisor = value),
@@ -558,8 +563,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     height: 220,
                     child: _faceImage != null
                         ? Image.file(_faceImage!, fit: BoxFit.cover)
-                        : _cameraReady &&
-                                _cameraController != null
+                        : _cameraReady && _cameraController != null
                             ? CameraPreview(_cameraController!)
                             : const Center(
                                 child: Text(
