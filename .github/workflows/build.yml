@@ -1,4 +1,3 @@
-
 name: Build Thuto Gov Android APK
 
 on:
@@ -38,21 +37,21 @@ jobs:
         run: |
           echo "Checking Android manifest files..."
           find android -name AndroidManifest.xml -type f -print
-
           echo "Searching for old V1 embedding references..."
           grep -R -n -E 'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|io\.flutter\.app\.FlutterFragmentActivity' android || true
-
           echo "Checking Flutter embedding markers..."
           grep -R -n 'flutterEmbedding' android || true
-
           echo "Checking MainActivity files..."
           find android/app/src -name '*MainActivity*' -type f -print
-
           echo "Checking Gradle configuration files..."
           find android -maxdepth 3 -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' -o -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print
-
           echo "Checking the main manifest..."
-          cat android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml || true
+
+      - name: Regenerate Android platform files
+        run: |
+          rm -rf android
+          flutter create . --platforms=android --org com.example --project-name thuto_gov
 
       - name: Get Flutter dependencies
         run: flutter pub get
