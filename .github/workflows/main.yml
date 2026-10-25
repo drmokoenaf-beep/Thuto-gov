@@ -36,6 +36,23 @@ jobs:
 
       - name: Verify Android V2 manifest
         run: |
+      - name: Diagnose all Android manifests
+        run: |
+          echo "Checking Android manifest files..."
+          find android -name AndroidManifest.xml -type f -print
+
+          echo "Searching for old Android V1 references..."
+          grep -R -n -E 'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|io\.flutter\.app\.FlutterFragmentActivity' android || true
+
+          echo "Checking Flutter embedding markers..."
+          grep -R -n 'flutterEmbedding' android || true
+
+          echo "Checking MainActivity files..."
+          find android/app/src -name '*MainActivity*' -type f -print
+
+          echo "Checking Gradle configuration files..."
+          find android -maxdepth 3 -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' -o -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print
+
           echo "Checking AndroidManifest.xml..."
           cat android/app/src/main/AndroidManifest.xml
 
