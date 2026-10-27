@@ -33,7 +33,7 @@ jobs:
       - name: Check Flutter version
         run: flutter --version
 
-      - name: Diagnose Android embedding
+      - name: Diagnose Android files before generation
         run: |
           echo "=== Android manifests ==="
           find android -name AndroidManifest.xml -print
@@ -41,13 +41,24 @@ jobs:
           echo "=== MainActivity files ==="
           find android -name "MainActivity.*" -print
 
+          echo "=== Android project files ==="
+          find android -maxdepth 5 -type f -print | sort
+
+      - name: Generate missing Android project files
+        run: flutter create . --platforms=android --project-name=thuto_gov --org=com.example
+
+      - name: Diagnose Android files after generation
+        run: |
+          echo "=== Android manifests after generation ==="
+          find android -name AndroidManifest.xml -print
+
+          echo "=== MainActivity files after generation ==="
+          find android -name "MainActivity.*" -print
+
           echo "=== Old Android embedding references ==="
           grep -R -n -E \
-            'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|PluginRegistry\.Registrar|registerWith\(' \
+            'io\.flutter\.app\.FlutterApplication|io\.flutter\.app\.FlutterActivity|PluginRegistry\.Registrar' \
             android lib || true
-
-          echo "=== Android project files ==="
-          find android -maxdepth 4 -type f -print | sort
 
       - name: Install dependencies
         run: flutter pub get
