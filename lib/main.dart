@@ -1,4 +1,6 @@
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,6 +9,49 @@ const String supabaseUrl =
 
 const String supabasePublishableKey =
     'sb_publishable_xE5Ftz-osVEAxVAeX32qTg_5UpKkRSi';
+
+final SupabaseClient supabase = Supabase.instance.client;
+
+Future<String> checkSupabaseConnection() async {
+  const host = 'uqmjkehzirlqpktwcdhh.supabase.co';
+
+  try {
+    final addresses = await InternetAddress.lookup(host)
+        .timeout(const Duration(seconds: 10));
+
+    if (addresses.isEmpty) {
+      return 'DNS_FAIL: No IP address found.';
+    }
+
+    debugPrint('DNS_OK: ${addresses.first.address}');
+  } catch (e) {
+    debugPrint('DNS_FAIL: $e');
+    return 'DNS_FAIL: $e';
+  }
+
+  final client = HttpClient();
+
+  try {
+    final request = await client
+        .getUrl(Uri.parse('https://$host/auth/v1/health'))
+        .timeout(const Duration(seconds: 10));
+
+    final response = await request.close()
+        .timeout(const Duration(seconds: 10));
+
+    final statusCode = response.statusCode;
+    await response.drain();
+
+    debugPrint('HTTPS_OK: HTTP $statusCode');
+
+    return 'DNS_OK | HTTPS_OK: HTTP $statusCode';
+  } catch (e) {
+    debugPrint('HTTPS_FAIL: $e');
+    return 'DNS_OK | HTTPS_FAIL: $e';
+  } finally {
+    client.close(force: true);
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,8 +63,6 @@ Future<void> main() async {
 
   runApp(const ThutoGovApp());
 }
-
-final SupabaseClient supabase = Supabase.instance.client;
 
 class ThutoGovApp extends StatelessWidget {
   const ThutoGovApp({super.key});
@@ -51,6 +94,7 @@ class AuthGate extends StatelessWidget {
         if (supabase.auth.currentSession != null) {
           return const HomeScreen();
         }
+
         return const LoginScreen();
       },
     );
@@ -76,7 +120,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => message = 'Enter your email and password.');
+      setState(() {
+        message = 'Enter your email and password.';
+      });
       return;
     }
 
@@ -86,6 +132,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      final diagnostic = await checkSupabaseConnection();
+
+      if (!diagnostic.startsWith('DNS_OK | HTTPS_OK')) {
+        if (mounted) {
+          setState(() => message = diagnostic);
+        }
+        return;
+      }
+
       await supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -100,13 +155,17 @@ class _LoginScreenState extends State<LoginScreen> {
         (route) => false,
       );
     } on AuthException catch (e) {
-      if (mounted) setState(() => message = e.message);
+      if (mounted) {
+        setState(() => message = e.message);
+      }
     } catch (e) {
       if (mounted) {
-        setState(() => message = 'Login failed. Check your connection.');
+        setState(() => message = 'Login failed: $e');
       }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -139,7 +198,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Text('Dr Mokoena Institution & Indigenous Knowledge Systems'),
+              const Text(
+                'Dr Mokoena Institution & Indigenous Knowledge Systems',
+              ),
               const SizedBox(height: 28),
               TextField(
                 controller: emailController,
@@ -169,7 +230,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: loading ? null : login,
-                  child: Text(loading ? 'Signing in...' : 'Login'),
+                  child: Text(
+                    loading ? 'Checking connection...' : 'Login',
+                  ),
                 ),
               ),
               TextButton(
@@ -199,7 +262,8 @@ class RegistrationScreen extends StatefulWidget {
       _RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
+class _RegistrationScreenState
+    extends State<RegistrationScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final idController = TextEditingController();
@@ -218,19 +282,35 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final position = positionController.text.trim();
     final password = passwordController.text;
 
-    if (name.isEmpty || email.isEmpty || password.length < 6) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.length < 6) {
       setState(() {
-        message = 'Enter your name, email and a password of at least 6 characters.';
+        message =
+            'Enter your name, email and a password of at least 6 characters.';
       });
       return;
     }
 
     setState(() {
       loading = true;
-      message = '';
+      message = 'Checking Supabase connection...';
     });
 
     try {
+      final diagnostic = await checkSupabaseConnection();
+
+      if (!diagnostic.startsWith('DNS_OK | HTTPS_OK')) {
+        if (mounted) {
+          setState(() => message = diagnostic);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => message = diagnostic);
+      }
+
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
@@ -280,15 +360,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         );
       }
     } on AuthException catch (e) {
-      if (mounted) setState(() => message = e.message);
+      if (mounted) {
+        setState(() => message = e.message);
+      }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          message = 'Registration or profile setup failed. Check Supabase settings.';
-        });
+        setState(() => message = 'Registration failed: $e');
       }
     } finally {
-      if (mounted) setState(() => loading = false);
+      if (mounted) {
+        setState(() => loading = false);
+      }
     }
   }
 
@@ -313,12 +395,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Full name'),
+              decoration: const InputDecoration(
+                labelText: 'Full name',
+              ),
             ),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+              ),
             ),
             TextField(
               controller: idController,
@@ -329,11 +415,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
             TextField(
               controller: departmentController,
-              decoration: const InputDecoration(labelText: 'Department'),
+              decoration: const InputDecoration(
+                labelText: 'Department',
+              ),
             ),
             TextField(
               controller: positionController,
-              decoration: const InputDecoration(labelText: 'Position'),
+              decoration: const InputDecoration(
+                labelText: 'Position',
+              ),
             ),
             TextField(
               controller: passwordController,
@@ -343,14 +433,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            if (message.isNotEmpty) Text(message),
+            if (message.isNotEmpty)
+              Text(
+                message,
+                style: const TextStyle(color: Colors.red),
+              ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: loading ? null : register,
                 child: Text(
-                  loading ? 'Creating account...' : 'Register',
+                  loading ? 'Checking connection...' : 'Register',
                 ),
               ),
             ),
@@ -455,7 +549,11 @@ class DashboardCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(icon, color: Colors.green, size: 32),
+        leading: Icon(
+          icon,
+          color: Colors.green,
+          size: 32,
+        ),
         title: Text(title),
         subtitle: Text(subtitle),
       ),
