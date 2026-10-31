@@ -12,45 +12,70 @@ const String supabasePublishableKey =
 
 final SupabaseClient supabase = Supabase.instance.client;
 
+/// Checks general DNS and Supabase DNS, then tests Supabase HTTPS.
 Future<String> checkSupabaseConnection() async {
-  const host = 'uqmjkehzirlqpktwcdhh.supabase.co';
+  const googleHost = 'google.com';
+  const supabaseHost = 'uqmjkehzirlqpktwcdhh.supabase.co';
 
-  try {
-    final addresses = await InternetAddress.lookup(host)
-        .timeout(const Duration(seconds: 10));
+  final results = <String>[];
+  bool supabaseDnsOk = false;
 
-    if (addresses.isEmpty) {
-      return 'DNS_FAIL: No IP address found.';
+  Future<bool> checkDns(String host) async {
+    try {
+      final addresses = await InternetAddress.lookup(host)
+          .timeout(const Duration(seconds: 15));
+
+      if (addresses.isEmpty) {
+        final result = 'DNS_FAIL: $host returned no IP address';
+        debugPrint(result);
+        results.add(result);
+        return false;
+      }
+
+      final result = 'DNS_OK: $host -> ${addresses.first.address}';
+      debugPrint(result);
+      results.add(result);
+      return true;
+    } catch (e) {
+      final result = 'DNS_FAIL: $host -> $e';
+      debugPrint(result);
+      results.add(result);
+      return false;
     }
+  }
 
-    debugPrint('DNS_OK: ${addresses.first.address}');
-  } catch (e) {
-    debugPrint('DNS_FAIL: $e');
-    return 'DNS_FAIL: $e';
+  await checkDns(googleHost);
+  supabaseDnsOk = await checkDns(supabaseHost);
+
+  if (!supabaseDnsOk) {
+    return results.join('\n');
   }
 
   final client = HttpClient();
 
   try {
     final request = await client
-        .getUrl(Uri.parse('https://$host/auth/v1/health'))
-        .timeout(const Duration(seconds: 10));
+        .getUrl(Uri.parse('$supabaseUrl/auth/v1/health'))
+        .timeout(const Duration(seconds: 15));
 
     final response = await request.close()
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 15));
 
     final statusCode = response.statusCode;
     await response.drain();
 
-    debugPrint('HTTPS_OK: HTTP $statusCode');
-
-    return 'DNS_OK | HTTPS_OK: HTTP $statusCode';
+    final result = 'SUPABASE_HTTPS_OK: HTTP $statusCode';
+    debugPrint(result);
+    results.add(result);
   } catch (e) {
-    debugPrint('HTTPS_FAIL: $e');
-    return 'DNS_OK | HTTPS_FAIL: $e';
+    final result = 'SUPABASE_HTTPS_FAIL: $e';
+    debugPrint(result);
+    results.add(result);
   } finally {
     client.close(force: true);
   }
+
+  return results.join('\n');
 }
 
 Future<void> main() async {
@@ -128,17 +153,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() {
       loading = true;
-      message = '';
+      message = 'Checking internet connection...';
     });
 
     try {
       final diagnostic = await checkSupabaseConnection();
 
-      if (!diagnostic.startsWith('DNS_OK | HTTPS_OK')) {
+      debugPrint(diagnostic);
+
+      if (!diagnostic.contains(
+        'DNS_OK: uqmjkehzirlqpktwcdhh.supabase.co',
+      )) {
         if (mounted) {
           setState(() => message = diagnostic);
         }
         return;
+      }
+
+      if (!diagnostic.contains('SUPABASE_HTTPS_OK')) {
+        if (mounted) {
+          setState(() => message =
+              '$diagnostic\nSupabase HTTPS connection failed.');
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => message = 'Connecting to your account...');
       }
 
       await supabase.auth.signInWithPassword(
@@ -221,9 +262,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
               if (message.isNotEmpty)
-                Text(
+                SelectableText(
                   message,
                   style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
                 ),
               const SizedBox(height: 12),
               SizedBox(
@@ -236,14 +278,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RegistrationScreen(),
-                    ),
-                  );
-                },
+                onPressed: loading
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const RegistrationScreen(),
+                          ),
+                        );
+                      },
                 child: const Text('Create an account'),
               ),
             ],
@@ -294,21 +339,33 @@ class _RegistrationScreenState
 
     setState(() {
       loading = true;
-      message = 'Checking Supabase connection...';
+      message = 'Checking internet connection...';
     });
 
     try {
       final diagnostic = await checkSupabaseConnection();
 
-      if (!diagnostic.startsWith('DNS_OK | HTTPS_OK')) {
+      debugPrint(diagnostic);
+
+      if (!diagnostic.contains(
+        'DNS_OK: uqmjkehzirlqpktwcdhh.supabase.co',
+      )) {
         if (mounted) {
           setState(() => message = diagnostic);
         }
         return;
       }
 
+      if (!diagnostic.contains('SUPABASE_HTTPS_OK')) {
+        if (mounted) {
+          setState(() => message =
+              '$diagnostic\nSupabase HTTPS connection failed.');
+        }
+        return;
+      }
+
       if (mounted) {
-        setState(() => message = diagnostic);
+        setState(() => message = 'Creating your account...');
       }
 
       final response = await supabase.auth.signUp(
@@ -345,13 +402,16 @@ class _RegistrationScreenState
 
       if (!mounted) return;
 
-      setState(() {
-        message = response.session == null
-            ? 'Account created. Check your email to confirm it, then log in.'
-            : 'Registration successful.';
-      });
+      if (response.session == null) {
+        setState(() {
+          message =
+              'Account created. Check your email to confirm it, then log in.';
+        });
+      } else {
+        setState(() {
+          message = 'Registration successful.';
+        });
 
-      if (response.session != null) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const HomeScreen(),
@@ -434,9 +494,10 @@ class _RegistrationScreenState
             ),
             const SizedBox(height: 20),
             if (message.isNotEmpty)
-              Text(
+              SelectableText(
                 message,
                 style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
               ),
             const SizedBox(height: 12),
             SizedBox(
