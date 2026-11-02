@@ -1,4 +1,5 @@
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,13 +13,13 @@ const String supabasePublishableKey =
 
 final SupabaseClient supabase = Supabase.instance.client;
 
-/// Checks general DNS and Supabase DNS, then tests Supabase HTTPS.
+/// Checks DNS and tests the actual Supabase Auth signup HTTPS endpoint.
+/// The deliberately invalid email prevents creation of a real account.
 Future<String> checkSupabaseConnection() async {
   const googleHost = 'google.com';
   const supabaseHost = 'uqmjkehzirlqpktwcdhh.supabase.co';
 
   final results = <String>[];
-  bool supabaseDnsOk = false;
 
   Future<bool> checkDns(String host) async {
     try {
@@ -45,7 +46,8 @@ Future<String> checkSupabaseConnection() async {
   }
 
   await checkDns(googleHost);
-  supabaseDnsOk = await checkDns(supabaseHost);
+
+  final supabaseDnsOk = await checkDns(supabaseHost);
 
   if (!supabaseDnsOk) {
     return results.join('\n');
@@ -54,21 +56,46 @@ Future<String> checkSupabaseConnection() async {
   final client = HttpClient();
 
   try {
+    final uri = Uri.parse('$supabaseUrl/auth/v1/signup');
+
     final request = await client
-        .getUrl(Uri.parse('$supabaseUrl/auth/v1/health'))
-        .timeout(const Duration(seconds: 15));
+        .postUrl(uri)
+        .timeout(const Duration(seconds: 20));
+
+    request.headers.set('apikey', supabasePublishableKey);
+    request.headers.contentType = ContentType.json;
+
+    // Invalid diagnostic email: this test must not create an account.
+    request.write(jsonEncode({
+      'email': 'invalid-diagnostic-email',
+      'password': 'test-password-only',
+    }));
 
     final response = await request.close()
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 20));
 
-    final statusCode = response.statusCode;
-    await response.drain();
+    final body = await response.transform(utf8.decoder).join();
 
-    final result = 'SUPABASE_HTTPS_OK: HTTP $statusCode';
-    debugPrint(result);
-    results.add(result);
+    final statusResult =
+        'AUTH_POST_HTTP_STATUS: ${response.statusCode}';
+    final bodyResult = 'AUTH_POST_RESPONSE: $body';
+
+    debugPrint(statusResult);
+    debugPrint(bodyResult);
+
+    results.add(statusResult);
+    results.add(bodyResult);
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 500) {
+      results.add(
+        'AUTH_POST_CONNECTION_OK: Server returned an HTTP response.',
+      );
+    } else {
+      results.add('AUTH_POST_SERVER_ERROR');
+    }
   } catch (e) {
-    final result = 'SUPABASE_HTTPS_FAIL: $e';
+    final result = 'AUTH_POST_CONNECTION_FAIL: $e';
     debugPrint(result);
     results.add(result);
   } finally {
@@ -170,10 +197,9 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      if (!diagnostic.contains('SUPABASE_HTTPS_OK')) {
+      if (!diagnostic.contains('AUTH_POST_CONNECTION_OK')) {
         if (mounted) {
-          setState(() => message =
-              '$diagnostic\nSupabase HTTPS connection failed.');
+          setState(() => message = diagnostic);
         }
         return;
       }
@@ -356,10 +382,9 @@ class _RegistrationScreenState
         return;
       }
 
-      if (!diagnostic.contains('SUPABASE_HTTPS_OK')) {
+      if (!diagnostic.contains('AUTH_POST_CONNECTION_OK')) {
         if (mounted) {
-          setState(() => message =
-              '$diagnostic\nSupabase HTTPS connection failed.');
+          setState(() => message = diagnostic);
         }
         return;
       }
