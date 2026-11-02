@@ -1,7 +1,4 @@
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -11,110 +8,57 @@ const String supabaseUrl =
 const String supabasePublishableKey =
     'sb_publishable_xE5Ftz-osVEAxVAeX32qTg_5UpKkRSi';
 
-final SupabaseClient supabase = Supabase.instance.client;
-
-/// Checks DNS and tests the actual Supabase Auth signup HTTPS endpoint.
-/// The deliberately invalid email prevents creation of a real account.
-Future<String> checkSupabaseConnection() async {
-  const googleHost = 'google.com';
-  const supabaseHost = 'uqmjkehzirlqpktwcdhh.supabase.co';
-
-  final results = <String>[];
-
-  Future<bool> checkDns(String host) async {
-    try {
-      final addresses = await InternetAddress.lookup(host)
-          .timeout(const Duration(seconds: 15));
-
-      if (addresses.isEmpty) {
-        final result = 'DNS_FAIL: $host returned no IP address';
-        debugPrint(result);
-        results.add(result);
-        return false;
-      }
-
-      final result = 'DNS_OK: $host -> ${addresses.first.address}';
-      debugPrint(result);
-      results.add(result);
-      return true;
-    } catch (e) {
-      final result = 'DNS_FAIL: $host -> $e';
-      debugPrint(result);
-      results.add(result);
-      return false;
-    }
-  }
-
-  await checkDns(googleHost);
-
-  final supabaseDnsOk = await checkDns(supabaseHost);
-
-  if (!supabaseDnsOk) {
-    return results.join('\n');
-  }
-
-  final client = HttpClient();
-
-  try {
-    final uri = Uri.parse('$supabaseUrl/auth/v1/signup');
-
-    final request = await client
-        .postUrl(uri)
-        .timeout(const Duration(seconds: 20));
-
-    request.headers.set('apikey', supabasePublishableKey);
-    request.headers.contentType = ContentType.json;
-
-    // Invalid diagnostic email: this test must not create an account.
-    request.write(jsonEncode({
-      'email': 'invalid-diagnostic-email',
-      'password': 'test-password-only',
-    }));
-
-    final response = await request.close()
-        .timeout(const Duration(seconds: 20));
-
-    final body = await response.transform(utf8.decoder).join();
-
-    final statusResult =
-        'AUTH_POST_HTTP_STATUS: ${response.statusCode}';
-    final bodyResult = 'AUTH_POST_RESPONSE: $body';
-
-    debugPrint(statusResult);
-    debugPrint(bodyResult);
-
-    results.add(statusResult);
-    results.add(bodyResult);
-
-    if (response.statusCode >= 200 &&
-        response.statusCode < 500) {
-      results.add(
-        'AUTH_POST_CONNECTION_OK: Server returned an HTTP response.',
-      );
-    } else {
-      results.add('AUTH_POST_SERVER_ERROR');
-    }
-  } catch (e) {
-    final result = 'AUTH_POST_CONNECTION_FAIL: $e';
-    debugPrint(result);
-    results.add(result);
-  } finally {
-    client.close(force: true);
-  }
-
-  return results.join('\n');
-}
+SupabaseClient get supabase => Supabase.instance.client;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    publishableKey: supabasePublishableKey,
-  );
+  try {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      publishableKey: supabasePublishableKey,
+    );
 
-  runApp(const ThutoGovApp());
+    runApp(const ThutoGovApp());
+  } catch (e) {
+    runApp(StartupErrorApp(error: e.toString()));
+  }
 }
+
+// --------------------------------------------------
+// STARTUP ERROR
+// --------------------------------------------------
+
+class StartupErrorApp extends StatelessWidget {
+  final String error;
+
+  const StartupErrorApp({
+    super.key,
+    required this.error,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SelectableText(
+              'Thuto Gov could not start.\n\n$error',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --------------------------------------------------
+// MAIN APP
+// --------------------------------------------------
 
 class ThutoGovApp extends StatelessWidget {
   const ThutoGovApp({super.key});
@@ -135,6 +79,10 @@ class ThutoGovApp extends StatelessWidget {
   }
 }
 
+// --------------------------------------------------
+// AUTH GATE
+// --------------------------------------------------
+
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -153,6 +101,10 @@ class AuthGate extends StatelessWidget {
   }
 }
 
+// --------------------------------------------------
+// LOGIN SCREEN
+// --------------------------------------------------
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -166,6 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool loading = false;
   String message = '';
+  bool success = false;
 
   Future<void> login() async {
     final email = emailController.text.trim();
@@ -174,40 +127,18 @@ class _LoginScreenState extends State<LoginScreen> {
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         message = 'Enter your email and password.';
+        success = false;
       });
       return;
     }
 
     setState(() {
       loading = true;
-      message = 'Checking internet connection...';
+      message = 'Connecting to Thuto Gov...';
+      success = false;
     });
 
     try {
-      final diagnostic = await checkSupabaseConnection();
-
-      debugPrint(diagnostic);
-
-      if (!diagnostic.contains(
-        'DNS_OK: uqmjkehzirlqpktwcdhh.supabase.co',
-      )) {
-        if (mounted) {
-          setState(() => message = diagnostic);
-        }
-        return;
-      }
-
-      if (!diagnostic.contains('AUTH_POST_CONNECTION_OK')) {
-        if (mounted) {
-          setState(() => message = diagnostic);
-        }
-        return;
-      }
-
-      if (mounted) {
-        setState(() => message = 'Connecting to your account...');
-      }
-
       await supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -223,15 +154,23 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on AuthException catch (e) {
       if (mounted) {
-        setState(() => message = e.message);
+        setState(() {
+          message = 'Login error: ${e.message}';
+          success = false;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => message = 'Login failed: $e');
+        setState(() {
+          message = 'Connection error: $e';
+          success = false;
+        });
       }
     } finally {
       if (mounted) {
-        setState(() => loading = false);
+        setState(() {
+          loading = false;
+        });
       }
     }
   }
@@ -246,7 +185,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thuto Gov Login')),
+      appBar: AppBar(
+        title: const Text('Thuto Gov Login'),
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -267,6 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const Text(
                 'Dr Mokoena Institution & Indigenous Knowledge Systems',
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               TextField(
@@ -290,8 +232,10 @@ class _LoginScreenState extends State<LoginScreen> {
               if (message.isNotEmpty)
                 SelectableText(
                   message,
-                  style: const TextStyle(color: Colors.red),
                   textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: success ? Colors.green : Colors.red,
+                  ),
                 ),
               const SizedBox(height: 12),
               SizedBox(
@@ -299,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: FilledButton(
                   onPressed: loading ? null : login,
                   child: Text(
-                    loading ? 'Checking connection...' : 'Login',
+                    loading ? 'Connecting...' : 'Login',
                   ),
                 ),
               ),
@@ -325,6 +269,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// --------------------------------------------------
+// REGISTRATION SCREEN
+// --------------------------------------------------
+
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
 
@@ -343,6 +291,7 @@ class _RegistrationScreenState
   final passwordController = TextEditingController();
 
   bool loading = false;
+  bool success = false;
   String message = '';
 
   Future<void> register() async {
@@ -359,40 +308,18 @@ class _RegistrationScreenState
       setState(() {
         message =
             'Enter your name, email and a password of at least 6 characters.';
+        success = false;
       });
       return;
     }
 
     setState(() {
       loading = true;
-      message = 'Checking internet connection...';
+      message = 'Creating your Thuto Gov account...';
+      success = false;
     });
 
     try {
-      final diagnostic = await checkSupabaseConnection();
-
-      debugPrint(diagnostic);
-
-      if (!diagnostic.contains(
-        'DNS_OK: uqmjkehzirlqpktwcdhh.supabase.co',
-      )) {
-        if (mounted) {
-          setState(() => message = diagnostic);
-        }
-        return;
-      }
-
-      if (!diagnostic.contains('AUTH_POST_CONNECTION_OK')) {
-        if (mounted) {
-          setState(() => message = diagnostic);
-        }
-        return;
-      }
-
-      if (mounted) {
-        setState(() => message = 'Creating your account...');
-      }
-
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
@@ -412,29 +339,18 @@ class _RegistrationScreenState
         );
       }
 
-      if (response.session != null) {
-        await supabase.from('profiles').upsert({
-          'id': user.id,
-          'email': email,
-          'full_name': name,
-          'id_number': idNumber,
-          'department': department,
-          'position': position,
-          'role': 'user',
-          'face_verified': false,
-        }, onConflict: 'id');
-      }
-
       if (!mounted) return;
 
       if (response.session == null) {
         setState(() {
           message =
-              'Account created. Check your email to confirm it, then log in.';
+              'Account created. Please check your email and confirm your account before logging in.';
+          success = true;
         });
       } else {
         setState(() {
           message = 'Registration successful.';
+          success = true;
         });
 
         Navigator.of(context).pushAndRemoveUntil(
@@ -446,15 +362,23 @@ class _RegistrationScreenState
       }
     } on AuthException catch (e) {
       if (mounted) {
-        setState(() => message = e.message);
+        setState(() {
+          message = 'Registration error: ${e.message}';
+          success = false;
+        });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => message = 'Registration failed: $e');
+        setState(() {
+          message = 'Connection error: $e';
+          success = false;
+        });
       }
     } finally {
       if (mounted) {
-        setState(() => loading = false);
+        setState(() {
+          loading = false;
+        });
       }
     }
   }
@@ -473,56 +397,85 @@ class _RegistrationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      appBar: AppBar(
+        title: const Text('Create Account'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            const Icon(
+              Icons.person_add_alt_1,
+              size: 55,
+              color: Colors.green,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'THUTO GOV REGISTRATION',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Full name',
+                border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Email',
+                border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: idController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'South African ID number (optional)',
+                border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: departmentController,
               decoration: const InputDecoration(
                 labelText: 'Department',
+                border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: positionController,
               decoration: const InputDecoration(
                 labelText: 'Position',
+                border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: passwordController,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Password (minimum 6 characters)',
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
             if (message.isNotEmpty)
               SelectableText(
                 message,
-                style: const TextStyle(color: Colors.red),
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: success ? Colors.green : Colors.red,
+                ),
               ),
             const SizedBox(height: 12),
             SizedBox(
@@ -530,7 +483,7 @@ class _RegistrationScreenState
               child: FilledButton(
                 onPressed: loading ? null : register,
                 child: Text(
-                  loading ? 'Checking connection...' : 'Register',
+                  loading ? 'Creating account...' : 'Register',
                 ),
               ),
             ),
@@ -541,20 +494,34 @@ class _RegistrationScreenState
   }
 }
 
+// --------------------------------------------------
+// HOME SCREEN
+// --------------------------------------------------
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Future<void> logout(BuildContext context) async {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
-      (route) => false,
-    );
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logout failed: $e'),
+        ),
+      );
+    }
   }
 
   @override
@@ -589,7 +556,8 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const DashboardCard(
             title: 'Supervisor Dashboard',
-            subtitle: 'Supervisor features require role-based access.',
+            subtitle:
+                'Supervisor features require role-based access.',
             icon: Icons.admin_panel_settings,
           ),
           const DashboardCard(
@@ -617,6 +585,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+
+// --------------------------------------------------
+// DASHBOARD CARD
+// --------------------------------------------------
 
 class DashboardCard extends StatelessWidget {
   final String title;
