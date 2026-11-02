@@ -1,4 +1,6 @@
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,17 +27,10 @@ Future<void> main() async {
   }
 }
 
-// --------------------------------------------------
-// STARTUP ERROR
-// --------------------------------------------------
-
 class StartupErrorApp extends StatelessWidget {
   final String error;
 
-  const StartupErrorApp({
-    super.key,
-    required this.error,
-  });
+  const StartupErrorApp({super.key, required this.error});
 
   @override
   Widget build(BuildContext context) {
@@ -56,10 +51,6 @@ class StartupErrorApp extends StatelessWidget {
   }
 }
 
-// --------------------------------------------------
-// MAIN APP
-// --------------------------------------------------
-
 class ThutoGovApp extends StatelessWidget {
   const ThutoGovApp({super.key});
 
@@ -79,10 +70,6 @@ class ThutoGovApp extends StatelessWidget {
   }
 }
 
-// --------------------------------------------------
-// AUTH GATE
-// --------------------------------------------------
-
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -94,16 +81,11 @@ class AuthGate extends StatelessWidget {
         if (supabase.auth.currentSession != null) {
           return const HomeScreen();
         }
-
         return const LoginScreen();
       },
     );
   }
 }
-
-// --------------------------------------------------
-// LOGIN SCREEN
-// --------------------------------------------------
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -156,22 +138,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           message = 'Login error: ${e.message}';
-          success = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           message = 'Connection error: $e';
-          success = false;
         });
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -185,19 +161,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thuto Gov Login'),
-      ),
+      appBar: AppBar(title: const Text('Thuto Gov Login')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const Icon(
-                Icons.account_balance,
-                size: 72,
-                color: Colors.green,
-              ),
+              const Icon(Icons.account_balance,
+                  size: 72, color: Colors.green),
               const SizedBox(height: 12),
               const Text(
                 'THUTO GOV',
@@ -242,9 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: loading ? null : login,
-                  child: Text(
-                    loading ? 'Connecting...' : 'Login',
-                  ),
+                  child: Text(loading ? 'Connecting...' : 'Login'),
                 ),
               ),
               TextButton(
@@ -269,9 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// --------------------------------------------------
 // REGISTRATION SCREEN
-// --------------------------------------------------
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -294,6 +261,31 @@ class _RegistrationScreenState
   bool success = false;
   String message = '';
 
+  // HTTPS DIAGNOSTIC
+  Future<String> testSupabaseConnection() async {
+    HttpClient? client;
+
+    try {
+      client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15);
+
+      final request = await client.getUrl(
+        Uri.parse('$supabaseUrl/auth/v1/health'),
+      );
+
+      final response = await request.close();
+      final statusCode = response.statusCode;
+
+      await response.drain();
+
+      return 'HTTPS CONNECTION SUCCESS: HTTP $statusCode';
+    } catch (e) {
+      return 'HTTPS CONNECTION FAILED: $e';
+    } finally {
+      client?.close(force: true);
+    }
+  }
+
   Future<void> register() async {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
@@ -315,11 +307,30 @@ class _RegistrationScreenState
 
     setState(() {
       loading = true;
-      message = 'Creating your Thuto Gov account...';
+      message = 'Testing Supabase HTTPS connection...';
       success = false;
     });
 
     try {
+      // STEP 1: Test HTTPS
+      final diagnostic = await testSupabaseConnection();
+
+      if (!mounted) return;
+
+      setState(() {
+        message = diagnostic;
+        success = diagnostic.contains('SUCCESS');
+      });
+
+      if (diagnostic.contains('FAILED')) {
+        return;
+      }
+
+      // STEP 2: Register account
+      setState(() {
+        message = '$diagnostic\nCreating your account...';
+      });
+
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
@@ -331,11 +342,9 @@ class _RegistrationScreenState
         },
       );
 
-      final user = response.user;
-
-      if (user == null) {
+      if (response.user == null) {
         throw const AuthException(
-          'Registration did not return a user. Please try again.',
+          'Registration did not return a user.',
         );
       }
 
@@ -375,11 +384,7 @@ class _RegistrationScreenState
         });
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -394,12 +399,30 @@ class _RegistrationScreenState
     super.dispose();
   }
 
+  Widget field(
+    TextEditingController controller,
+    String label, {
+    bool obscure = false,
+    TextInputType? keyboardType,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-      ),
+      appBar: AppBar(title: const Text('Create Account')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -418,57 +441,24 @@ class _RegistrationScreenState
               ),
             ),
             const SizedBox(height: 20),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Full name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
+            field(nameController, 'Full name'),
+            field(
+              emailController,
+              'Email',
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: idController,
+            field(
+              idController,
+              'South African ID number (optional)',
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'South African ID number (optional)',
-                border: OutlineInputBorder(),
-              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: departmentController,
-              decoration: const InputDecoration(
-                labelText: 'Department',
-                border: OutlineInputBorder(),
-              ),
+            field(departmentController, 'Department'),
+            field(positionController, 'Position'),
+            field(
+              passwordController,
+              'Password (minimum 6 characters)',
+              obscure: true,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: positionController,
-              decoration: const InputDecoration(
-                labelText: 'Position',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password (minimum 6 characters)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
             if (message.isNotEmpty)
               SelectableText(
                 message,
@@ -477,13 +467,13 @@ class _RegistrationScreenState
                   color: success ? Colors.green : Colors.red,
                 ),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: loading ? null : register,
                 child: Text(
-                  loading ? 'Creating account...' : 'Register',
+                  loading ? 'Testing / Registering...' : 'Register',
                 ),
               ),
             ),
@@ -494,9 +484,7 @@ class _RegistrationScreenState
   }
 }
 
-// --------------------------------------------------
 // HOME SCREEN
-// --------------------------------------------------
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -517,9 +505,7 @@ class HomeScreen extends StatelessWidget {
       if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Logout failed: $e'),
-        ),
+        SnackBar(content: Text('Logout failed: $e')),
       );
     }
   }
@@ -535,7 +521,6 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             onPressed: () => logout(context),
             icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
           ),
         ],
       ),
@@ -556,8 +541,7 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const DashboardCard(
             title: 'Supervisor Dashboard',
-            subtitle:
-                'Supervisor features require role-based access.',
+            subtitle: 'Supervisor features require role-based access.',
             icon: Icons.admin_panel_settings,
           ),
           const DashboardCard(
@@ -586,10 +570,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// --------------------------------------------------
-// DASHBOARD CARD
-// --------------------------------------------------
-
 class DashboardCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -607,11 +587,7 @@ class DashboardCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: Colors.green,
-          size: 32,
-        ),
+        leading: Icon(icon, color: Colors.green, size: 32),
         title: Text(title),
         subtitle: Text(subtitle),
       ),
